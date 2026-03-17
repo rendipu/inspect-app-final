@@ -2,44 +2,44 @@ import { useState, useEffect } from 'react'
 import { api } from '../lib/api'
 import MultiUserInput from '../components/MultiUserInput'
 
-const TODAY     = new Date().toISOString().split('T')[0]
+const TODAY = new Date().toISOString().split('T')[0]
 const ANS_COLOR = { good: 'var(--ok)', bad: 'var(--err)', repair: 'var(--wn)' }
-const CAT_BG    = {
-  Engine:        'var(--infbg)',
-  Hydraulic:     'var(--wnbg)',
+const CAT_BG = {
+  Engine: 'var(--infbg)',
+  Hydraulic: 'var(--wnbg)',
   Undercarriage: 'var(--purbg)',
-  Electrical:    'var(--sfy)',
-  Body:          'var(--bd2)',
-  Safety:        'var(--errbg)',
+  Electrical: 'var(--sfy)',
+  Body: 'var(--bd2)',
+  Safety: 'var(--errbg)',
 }
 
 export default function InspectionForm({ user, data, selUnit, setPage, refetch }) {
   const { units, users, inspections } = data
   const mechs = users.filter(u => u.role === 'mekanik')
-  const gls   = users.filter(u => u.role === 'group_leader')
+  const gls = users.filter(u => u.role === 'group_leader')
 
   const currentUser = users.find(u => u.id === user.id)
 
-  const [unitId,    setUnitId]    = useState(selUnit ? String(selUnit.id) : '')
-  const [hm,        setHm]        = useState('')
-  const [hmError,   setHmError]   = useState('')
-  const [selMechs,  setSelMechs]  = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
-  const [start,     setStart]     = useState('')
-  const [finish,    setFinish]    = useState('')
-  const [glId,      setGlId]      = useState('')
-  const [ans,       setAns]       = useState({})
+  const [unitId, setUnitId] = useState(selUnit ? String(selUnit.id) : '')
+  const [hm, setHm] = useState('')
+  const [hmError, setHmError] = useState('')
+  const [selMechs, setSelMechs] = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
+  const [start, setStart] = useState('')
+  const [finish, setFinish] = useState('')
+  const [glId, setGlId] = useState('')
+  const [ans, setAns] = useState({})
   const [questions, setQuestions] = useState([])
   const [submitted, setSubmitted] = useState(false)
-  const [saving,    setSaving]    = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const selectedUnit = units.find(u => u.id === parseInt(unitId))
 
   // Cek apakah unit sudah diinspeksi hari ini — dari data lokal
   const todayInspection = unitId
     ? inspections.find(i => {
-        const tgl = new Date(i.tanggal).toISOString().split('T')[0]
-        return i.unit_id === parseInt(unitId) && tgl === TODAY
-      })
+      const tgl = new Date(i.tanggal).toISOString().split('T')[0]
+      return i.unit_id === parseInt(unitId) && tgl === TODAY
+    })
     : null
 
   const alreadyDone = !!todayInspection
@@ -100,24 +100,24 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
     }
 
     const answers = questions.map(q => {
-      const a    = ans[q.id]
+      const a = ans[q.id]
       const item = { question_id: q.id, answer: a.answer }
-      if (a.answer === 'bad')    item.part_order = { part_name: a.part_name||'', part_number: a.part_number||'', quantity: parseInt(a.qty)||1, keterangan: a.ket||'', foto_url: null }
-      if (a.answer === 'repair') item.repair     = { keterangan: a.rep_ket||'', foto_url: null }
+      if (a.answer === 'bad') item.part_order = { part_name: a.part_name || '', part_number: a.part_number || '', quantity: parseInt(a.qty) || 1, keterangan: a.ket || '', foto_url: null }
+      if (a.answer === 'repair') item.repair = { keterangan: a.rep_ket || '', foto_url: null }
       return item
     })
 
     setSaving(true)
     try {
       await api.createInspection({
-        unit_id:         parseInt(unitId),
-        hour_meter:      parseFloat(hm),
-        jam_start:       start,
-        jam_finish:      finish,
+        unit_id: parseInt(unitId),
+        hour_meter: parseFloat(hm),
+        jam_start: start,
+        jam_finish: finish,
         group_leader_id: parseInt(glId),
-        mekanik_ids:     selMechs.map(m => m.id),
+        mekanik_ids: selMechs.map(m => m.id),
         answers,
-        tanggal:         TODAY,
+        tanggal: TODAY,
       })
       await refetch()
       setSubmitted(true)
@@ -172,10 +172,10 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
               {units.map(u => {
                 const ins = inspections.find(i => {
                   const tgl = new Date(i.tanggal).toISOString().split('T')[0]
-                  return i.unit_id === u.id && tgl === TODAY
+                  return i.unit_id === u._id && tgl === TODAY
                 })
                 return (
-                  <option key={u.id} value={u.id}>
+                  <option key={u._id} value={u._id}>
                     {u.nomor_unit} — {u.brand} {u.tipe}{ins ? ' ✓ (sudah diinspeksi)' : ''}
                   </option>
                 )
@@ -194,7 +194,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
             {/* ── WARNING UNIT SUDAH DIINSPEKSI — muncul langsung saat pilih unit ── */}
             {alreadyDone && selectedUnit && (() => {
               const mechs = (todayInspection.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-              const gl    = todayInspection.group_leader?.nama || '-'
+              const gl = todayInspection.group_leader?.nama || '-'
               return (
                 <div style={{ marginTop: 8, background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -342,10 +342,10 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                     <div style={{ background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>⚠ Data Order Part</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
-                        <div><label className="lbl">Part Name *</label><input value={a.part_name||''} onChange={e => setA(q.id,'part_name',e.target.value)} placeholder="e.g. Air Filter" style={IS} /></div>
-                        <div><label className="lbl">Part Number</label><input value={a.part_number||''} onChange={e => setA(q.id,'part_number',e.target.value)} placeholder="e.g. AF-1234" style={IS} /></div>
-                        <div><label className="lbl">Quantity *</label><input type="number" value={a.qty||''} onChange={e => setA(q.id,'qty',e.target.value)} placeholder="1" style={IS} /></div>
-                        <div><label className="lbl">Keterangan</label><input value={a.ket||''} onChange={e => setA(q.id,'ket',e.target.value)} placeholder="Detail kondisi..." style={IS} /></div>
+                        <div><label className="lbl">Part Name *</label><input value={a.part_name || ''} onChange={e => setA(q.id, 'part_name', e.target.value)} placeholder="e.g. Air Filter" style={IS} /></div>
+                        <div><label className="lbl">Part Number</label><input value={a.part_number || ''} onChange={e => setA(q.id, 'part_number', e.target.value)} placeholder="e.g. AF-1234" style={IS} /></div>
+                        <div><label className="lbl">Quantity *</label><input type="number" value={a.qty || ''} onChange={e => setA(q.id, 'qty', e.target.value)} placeholder="1" style={IS} /></div>
+                        <div><label className="lbl">Keterangan</label><input value={a.ket || ''} onChange={e => setA(q.id, 'ket', e.target.value)} placeholder="Detail kondisi..." style={IS} /></div>
                       </div>
                       <button style={{ marginTop: 10, background: 'transparent', border: '1.5px dashed var(--p)', color: 'var(--pd)', padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                         📷 Upload Foto
@@ -355,7 +355,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                   {a.answer === 'repair' && (
                     <div style={{ background: 'var(--wnbg)', border: '1.5px solid var(--wnbd)', borderRadius: 8, padding: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--wn)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>🔧 Detail Perbaikan</div>
-                      <textarea value={a.rep_ket||''} onChange={e => setA(q.id,'rep_ket',e.target.value)} placeholder="Jelaskan perbaikan yang dilakukan..." rows={2} style={{ ...IS, resize: 'none' }} />
+                      <textarea value={a.rep_ket || ''} onChange={e => setA(q.id, 'rep_ket', e.target.value)} placeholder="Jelaskan perbaikan yang dilakukan..." rows={2} style={{ ...IS, resize: 'none' }} />
                       <button style={{ marginTop: 8, background: 'transparent', border: '1.5px dashed var(--p)', color: 'var(--pd)', padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
                         📷 Upload Foto
                       </button>
