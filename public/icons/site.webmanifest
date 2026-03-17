@@ -4,7 +4,7 @@
   "description": "Aplikasi inspeksi kendaraan alat berat tambang – jadwal, pemeriksaan, dan laporan real-time",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "background_color": "#ffffff",
   "theme_color": "#f59e0b",
   "orientation": "portrait-primary",
   "lang": "id",
@@ -23,7 +23,7 @@
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/android-chrome-512x512.png",
+      "src": "/icons/mineinspect-crane.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
