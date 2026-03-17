@@ -1,10 +1,3 @@
-// src/lib/api.js
-// API client — kompatibel dengan backend MongoDB Atlas baru
-// Perubahan dari v1:
-// - BASE URL dari VITE_API_URL (sama)
-// - getInspections: response sekarang { data, meta } — di-handle di usePolling
-// - stockMovement: kirim delta (bukan tipe/jumlah)
-
 const BASE = import.meta.env.VITE_API_URL || ''
 
 function getToken() {
@@ -34,19 +27,19 @@ async function request(path, options = {}) {
 export const api = {
   // ── Auth ────────────────────────────────────────────────────────────
   login: (nrp, password) =>
-    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ nrp, password }) }),
+    request('/api/', { method: 'POST', body: JSON.stringify({ nrp, password }) }),
 
   // ── Users ───────────────────────────────────────────────────────────
-  getUsers:   ()           => request('/api/users'),
-  createUser: (data)       => request('/api/users',    { method: 'POST',   body: JSON.stringify(data) }),
-  updateUser: (id, data)   => request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteUser: (id)         => request(`/api/users/${id}`, { method: 'DELETE' }),
+  getUsers: () => request('/api/users'),
+  createUser: (data) => request('/api/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id, data) => request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUser: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
 
   // ── Units ───────────────────────────────────────────────────────────
-  getUnits:   ()           => request('/api/units'),
-  createUnit: (data)       => request('/api/units',    { method: 'POST',   body: JSON.stringify(data) }),
-  updateUnit: (id, data)   => request(`/api/units/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteUnit: (id)         => request(`/api/units/${id}`, { method: 'DELETE' }),
+  getUnits: () => request('/api/units'),
+  createUnit: (data) => request('/api/units', { method: 'POST', body: JSON.stringify(data) }),
+  updateUnit: (id, data) => request(`/api/units/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUnit: (id) => request(`/api/units/${id}`, { method: 'DELETE' }),
 
   getHourMeterLogs: (unit_id) => {
     const qs = unit_id ? `?unit_id=${unit_id}` : ''
@@ -60,19 +53,19 @@ export const api = {
     const qs = new URLSearchParams(params).toString()
     return request(`/api/questions${qs ? `?${qs}` : ''}`)
   },
-  createQuestion: (data)     => request('/api/questions',      { method: 'POST',   body: JSON.stringify(data) }),
-  updateQuestion: (id, data) => request(`/api/questions/${id}`, { method: 'PUT',   body: JSON.stringify(data) }),
-  deleteQuestion: (id)       => request(`/api/questions/${id}`, { method: 'DELETE' }),
+  createQuestion: (data) => request('/api/questions', { method: 'POST', body: JSON.stringify(data) }),
+  updateQuestion: (id, data) => request(`/api/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteQuestion: (id) => request(`/api/questions/${id}`, { method: 'DELETE' }),
 
   // ── Schedules ───────────────────────────────────────────────────────
   getTodaySchedule: (tanggal) => {
     const qs = tanggal ? `?tanggal=${tanggal}` : ''
     return request(`/api/schedules${qs}`)
   },
-  getRecurringSchedules:     ()           => request('/api/schedules?mode=recurring'),
-  saveRecurringSchedule:     (data)       => request('/api/schedules',    { method: 'POST',  body: JSON.stringify(data) }),
-  updateRecurringSchedule:   (id, data)   => request(`/api/schedules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  deleteRecurringSchedule:   (id)         => request(`/api/schedules/${id}`, { method: 'DELETE' }),
+  getRecurringSchedules: () => request('/api/schedules?mode=recurring'),
+  saveRecurringSchedule: (data) => request('/api/schedules', { method: 'POST', body: JSON.stringify(data) }),
+  updateRecurringSchedule: (id, data) => request(`/api/schedules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteRecurringSchedule: (id) => request(`/api/schedules/${id}`, { method: 'DELETE' }),
 
   // ── Inspections ─────────────────────────────────────────────────────
   getInspections: (params = {}) => {
@@ -81,7 +74,7 @@ export const api = {
     const qs = new URLSearchParams(p).toString()
     return request(`/api/inspections${qs ? `?${qs}` : ''}`)
   },
-  getInspection:    (id)   => request(`/api/inspections/${id}`),
+  getInspection: (id) => request(`/api/inspections/${id}`),
   createInspection: (data) => request('/api/inspections', { method: 'POST', body: JSON.stringify(data) }),
 
   // ── Work Status ─────────────────────────────────────────────────────
@@ -93,17 +86,17 @@ export const api = {
     const qs = new URLSearchParams(params).toString()
     return request(`/api/stock${qs ? `?${qs}` : ''}`)
   },
-  getStock:    (id)         => request(`/api/stock/${id}`),
-  createStock: (data)       => request('/api/stock',    { method: 'POST',  body: JSON.stringify(data) }),
-  updateStock: (id, data)   => request(`/api/stock/${id}`, { method: 'PUT',   body: JSON.stringify(data) }),
-  deleteStock: (id)         => request(`/api/stock/${id}`, { method: 'DELETE' }),
+  getStock: (id) => request(`/api/stock/${id}`),
+  createStock: (data) => request('/api/stock', { method: 'POST', body: JSON.stringify(data) }),
+  updateStock: (id, data) => request(`/api/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteStock: (id) => request(`/api/stock/${id}`, { method: 'DELETE' }),
 
   // stockMovement — backend menerima { delta, catatan }
   // delta positif = masuk, negatif = keluar
   stockMovement: (id, moveData) => {
     let delta = parseInt(moveData.jumlah) || 0
-    if (moveData.tipe === 'keluar')     delta = -Math.abs(delta)
-    if (moveData.tipe === 'masuk')      delta =  Math.abs(delta)
+    if (moveData.tipe === 'keluar') delta = -Math.abs(delta)
+    if (moveData.tipe === 'masuk') delta = Math.abs(delta)
     if (moveData.tipe === 'adjustment') delta = parseInt(moveData.jumlah) // akan di-handle server sebagai set absolute
 
     return request(`/api/stock/${id}`, {
