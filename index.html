@@ -1,33 +1,89 @@
 <!DOCTYPE html>
 <html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- PWA -->
-    <meta name="theme-color" content="#f59e0b" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="InspectApp" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-    <!-- SEO -->
-    <meta name="description" content="INSPECT — Heavy Equipment Inspection System untuk tambang" />
-    <meta name="robots" content="noindex, nofollow" />
+  <!-- Viewport (mobile lapangan) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <!-- Primary SEO -->
+  <title>MineInspect — Sistem Inspeksi Alat Berat Tambang</title>
+  <meta name="description"
+    content="MineInspect adalah sistem inspeksi digital untuk heavy equipment tambang batubara, membantu meningkatkan safety, reliability, dan efisiensi operasional unit." />
+  <meta name="keywords"
+    content="inspeksi alat berat, tambang batubara, heavy equipment inspection, maintenance system, fleet management, mine inspection" />
+  <meta name="author" content="MineInspect" />
 
-    <!-- Preconnect Cloudinary -->
-    <link rel="preconnect" href="https://res.cloudinary.com" />
+  <!-- Indexing (ubah ke index jika public) -->
+  <meta name="robots" content="noindex, nofollow" />
 
-    <title>INSPECT — Heavy Equipment Inspection</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <!-- Canonical -->
+  <link rel="canonical" href="https://mineinspect.app/" />
+
+  <!-- Open Graph (Facebook / WhatsApp / LinkedIn) -->
+  <meta property="og:title" content="MineInspect — Sistem Inspeksi Alat Berat Tambang" />
+  <meta property="og:description"
+    content="Digital inspection system untuk meningkatkan safety dan performa alat berat tambang." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mineinspect.app/" />
+  <meta property="og:image" content="/logo/mineinspect-crane.png" />
+  <meta property="og:site_name" content="MineInspect" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MineInspect — Heavy Equipment Inspection" />
+  <meta name="twitter:description" content="Sistem inspeksi digital untuk alat berat tambang." />
+  <meta name="twitter:image" content="/logo/mineinspect-crane.png" />
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#f59e0b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="MineInspect" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+  <!-- Logo (SEO penting) -->
+  <link rel="icon" type="image/png" href="/logo/mineinspect-crane.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap"
+    rel="stylesheet" />
+
+  <!-- Performance -->
+  <meta name="format-detection" content="telephone=no" />
+
+  <!-- Structured Data (VERY IMPORTANT for SEO) -->
+  <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MineInspect",
+        "operatingSystem": "Web, Android, iOS",
+        "applicationCategory": "BusinessApplication",
+        "description": "Sistem inspeksi digital untuk alat berat tambang yang meningkatkan safety dan efisiensi operasional.",
+        "image": "https://mineinspect.vercel.app/logo/mineinspect-crane.png",
+        "url": "https://mineinspect.vercel.app/",
+        "author": {
+          "@type": "Organization",
+          "name": "MineInspect"
+        }
+      }
+    </script>
+</head>
+
+<body>
+  <!-- Hidden SEO Logo (crawler bisa baca) -->
+  <img src="/logo/mineinspect-crane.png" alt="MineInspect Logo Crane Tadano Heavy Equipment Inspection System"
+    style="display:none;" />
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>
