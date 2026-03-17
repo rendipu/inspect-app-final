@@ -27,7 +27,7 @@ async function request(path, options = {}) {
 export const api = {
   // ── Auth ────────────────────────────────────────────────────────────
   login: (nrp, password) =>
-    request('/api/', { method: 'POST', body: JSON.stringify({ nrp, password }) }),
+    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ nrp, password }) }),
 
   // ── Users ───────────────────────────────────────────────────────────
   getUsers: () => request('/api/users'),
