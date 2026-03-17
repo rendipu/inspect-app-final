@@ -12,7 +12,7 @@ export const config = {
     // Nonaktifkan body parser — SSE butuh streaming
     bodyParser: false,
   },
-  runtime: 'nodejs',
+  maxDuration: 300,
 }
 
 
