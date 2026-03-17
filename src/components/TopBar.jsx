@@ -2,21 +2,23 @@ import LiveIndicator from './LiveIndicator'
 
 export default function TopBar({ user, page, pageTitle, syncing, lastSync, online, onLogout }) {
   const PAGE_TITLES = {
-    dashboard:  'Dashboard',
+    dashboard: 'Dashboard',
     inspection: 'Form Inspeksi',
-    history:    'History Kerusakan',
-    analytics:  'Analytics',
-    approvals:  'Approval Order',
-    admin:      'Manajemen Admin',
+    history: 'History Kerusakan',
+    analytics: 'Analytics',
+    approvals: 'Approval Order',
+    admin: 'Manajemen Admin',
   }
 
   return (
     <div className="mobile-topbar">
       {/* Kiri: Logo + Judul halaman */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 32, height: 32, background: 'var(--p)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900, color: '#1c1917', flexShrink: 0 }}>
-          ⚙
-        </div>
+        <img
+          src="/logo/mineinspect-crane.png"
+          alt="MineInspect Logo"
+          style={{ width: 60, height: 60, objectFit: 'fill', flexShrink: 0 }}
+        />
         <div>
           <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--t)', lineHeight: 1.2 }}>
             {PAGE_TITLES[page] || 'INSPECT'}
@@ -36,10 +38,10 @@ export default function TopBar({ user, page, pageTitle, syncing, lastSync, onlin
         <button
           onClick={onLogout}
           className="touch-target"
-          style={{ background: 'transparent', border: 'none', color: 'var(--err)', fontSize: 18, cursor: 'pointer', borderRadius: 8 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--err)', fontSize: 12, cursor: 'pointer', borderRadius: 8 }}
           title="Logout"
         >
-          🚪
+          ↪️Logout
         </button>
       </div>
     </div>

@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 
 export default function LoginPage({ onLogin }) {
-  const [nrp,     setNrp]     = useState('')
-  const [pw,      setPw]      = useState('')
-  const [err,     setErr]     = useState('')
+  const [nrp, setNrp] = useState('')
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
@@ -22,10 +22,16 @@ export default function LoginPage({ onLogin }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 64, height: 64, background: 'var(--p)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 30, boxShadow: '0 4px 20px rgba(245,158,11,.35)' }}>⚙</div>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ width: 140, height: 140, margin: '-1rem auto', display: 'block', }}>
+            <img
+              src="/logo/mineinspect-crane.png"
+              alt="MineInspect Logo"
+              style={{ width: 160, height: 160, margin: '-1rem auto', display: 'block', objectFit: 'fill' }}
+            />
+          </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--t)', letterSpacing: '.04em' }}>INSPECT</div>
-          <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 4 }}>Heavy Equipment Inspection System</div>
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>Heavy Equipment Inspection System</div>
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--p)' }}>
           <div style={{ marginBottom: 14 }}>
