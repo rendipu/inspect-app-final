@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+*.local
+
+# PWA generated
+public/sw.js
+public/workbox-*.js
+sw.js
+workbox-*.js
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
