@@ -4,15 +4,15 @@ import WorkStatusBadge from '../components/WorkStatusBadge'
 import { api } from '../lib/api'
 
 const WORK_OPTIONS = [
-  { v: 'belum_dikerjakan',  l: 'Belum Dikerjakan', c: 'var(--err)' },
+  { v: 'belum_dikerjakan', l: 'Belum Dikerjakan', c: 'var(--err)' },
   { v: 'sedang_dikerjakan', l: 'Sedang Dikerjakan', c: 'var(--wn)' },
-  { v: 'sudah_selesai',     l: 'Sudah Selesai',    c: 'var(--ok)' },
+  { v: 'sudah_selesai', l: 'Sudah Selesai', c: 'var(--ok)' },
 ]
 
 function OrderCard({ o, showApprove, onApprove, onReject, onWorkStatus, updating }) {
   const borderColor =
-    o.po.status === 'pending'  ? 'var(--wn)'  :
-    o.po.status === 'approved' ? 'var(--ok)'  : 'var(--err)'
+    o.po.status === 'pending' ? 'var(--wn)' :
+      o.po.status === 'approved' ? 'var(--ok)' : 'var(--err)'
 
   return (
     <div className="card" style={{ borderLeft: `3px solid ${borderColor}`, borderRadius: '0 12px 12px 0' }}>
@@ -24,7 +24,10 @@ function OrderCard({ o, showApprove, onApprove, onReject, onWorkStatus, updating
             <Badge type={o.po.status} />
             {o.po.status === 'approved' && <WorkStatusBadge status={o.po.work_status} />}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--t2)' }}>{o.q?.pertanyaan}</div>
+          {/* BUG FIX #25: a.question adalah undefined — field embed di Inspection.answers
+              adalah question_pertanyaan (string), bukan object question.
+              Sebelumnya: q: a.question → selalu undefined → tidak ada teks pertanyaan tampil */}
+          <div style={{ fontSize: 12, color: 'var(--t2)' }}>{o.pertanyaan}</div>
           <div style={{ fontSize: 11, color: 'var(--t3)' }}>
             {o.mechs} · {new Date(o.tanggal).toLocaleDateString('id-ID')} ·
             HM: <strong style={{ color: 'var(--pd)' }}>{o.hm?.toLocaleString()} jam</strong>
@@ -41,8 +44,8 @@ function OrderCard({ o, showApprove, onApprove, onReject, onWorkStatus, updating
 
       {showApprove && (
         <div style={{ display: 'flex', gap: 8, marginBottom: o.po.status === 'approved' ? 10 : 0 }}>
-          <button className="btn-ok"  style={{ flex: 1 }} onClick={onApprove} disabled={updating}>✓ Approve</button>
-          <button className="btn-err" style={{ flex: 1 }} onClick={onReject}  disabled={updating}>✕ Reject</button>
+          <button className="btn-ok" style={{ flex: 1 }} onClick={onApprove} disabled={updating}>✓ Approve</button>
+          <button className="btn-err" style={{ flex: 1 }} onClick={onReject} disabled={updating}>✕ Reject</button>
         </div>
       )}
 
@@ -74,26 +77,26 @@ export default function Approvals({ data, refetch }) {
   // Kumpulkan semua part order dari inspeksi
   const orders = []
   inspections.forEach(ins => {
-    const u     = ins.unit || units.find(x => x.id === ins.unit_id)
+    const u = ins.unit || units.find(x => x.id === ins.unit_id)
     const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-    const hm    = ins.hour_meter
+    const hm = ins.hour_meter
 
-    ;(ins.answers || []).forEach(a => {
-      // Pastikan part_order ada dan punya id
-      if (a.answer === 'bad' && a.part_order && a.part_order.id) {
-        orders.push({
-          u,
-          hm,
-          tanggal: ins.tanggal,
-          mechs,
-          q:  a.question,
-          po: a.part_order,
-        })
-      }
-    })
+      ; (ins.answers || []).forEach(a => {
+        if (a.answer === 'bad' && a.part_order && a.part_order.id) {
+          orders.push({
+            u,
+            hm,
+            tanggal: ins.tanggal,
+            mechs,
+            // BUG FIX #25: simpan string pertanyaan langsung dari field embed
+            pertanyaan: a.question_pertanyaan,
+            po: a.part_order,
+          })
+        }
+      })
   })
 
-  const pending  = orders.filter(o => o.po.status === 'pending')
+  const pending = orders.filter(o => o.po.status === 'pending')
   const approved = orders.filter(o => o.po.status === 'approved')
   const rejected = orders.filter(o => o.po.status === 'rejected')
 
@@ -131,8 +134,8 @@ export default function Approvals({ data, refetch }) {
           o={o}
           showApprove={showApprove}
           updating={updating === o.po.id}
-          onApprove={()    => handleOrderStatus(o.po.id, 'approved')}
-          onReject={()     => handleOrderStatus(o.po.id, 'rejected')}
+          onApprove={() => handleOrderStatus(o.po.id, 'approved')}
+          onReject={() => handleOrderStatus(o.po.id, 'rejected')}
           onWorkStatus={ws => handleWorkStatus(o.po.id, ws)}
         />
       ))}
@@ -142,9 +145,8 @@ export default function Approvals({ data, refetch }) {
   return (
     <div className="fade">
       <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t)', marginBottom: 4 }}>Approval Order Part</h1>
-      <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 20 }}>Review order part & update status pengerjaan</p>
+      <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 20 }}>Review order part &amp; update status pengerjaan</p>
 
-      {/* Pending */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <div className="lbl" style={{ marginBottom: 0 }}>Menunggu Persetujuan</div>
@@ -156,14 +158,13 @@ export default function Approvals({ data, refetch }) {
         </div>
         {pending.length === 0
           ? <div className="card" style={{ textAlign: 'center', color: 'var(--t3)', padding: 32 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
-              <div>Tidak ada order menunggu persetujuan</div>
-            </div>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+            <div>Tidak ada order menunggu persetujuan</div>
+          </div>
           : <CardList list={pending} showApprove />
         }
       </div>
 
-      {/* Approved */}
       {approved.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -176,7 +177,6 @@ export default function Approvals({ data, refetch }) {
         </div>
       )}
 
-      {/* Rejected */}
       {rejected.length > 0 && (
         <div>
           <div className="lbl" style={{ marginBottom: 10 }}>Ditolak ({rejected.length})</div>

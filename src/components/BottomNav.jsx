@@ -1,12 +1,12 @@
 const MENUS = [
   { key: 'dashboard',  icon: '▦',  label: 'Dashboard', roles: ['admin','group_leader','mekanik'] },
   { key: 'inspection', icon: '📋', label: 'Inspeksi',   roles: ['mekanik','admin'] },
-  { key: 'stock',      icon: '📦', label: 'Stock',      roles: ['admin','warehouse','group_leader','mekanik'] },
   { key: 'hourmeter',  icon: '⏱',  label: 'HM',        roles: ['admin','group_leader','mekanik'] },
   { key: 'history',    icon: '🗂',  label: 'History',   roles: ['admin','group_leader','mekanik'] },
   { key: 'analytics',  icon: '📊', label: 'Analitik',  roles: ['admin','group_leader','mekanik'] },
   { key: 'approvals',  icon: '✅', label: 'Approval',  roles: ['group_leader'] },
   { key: 'admin',      icon: '⚙',  label: 'Admin',     roles: ['admin'] },
+  { key: 'stock',      icon: '📦', label: 'Stock',      roles: ['admin','warehouse','group_leader','mekanik'] },
 ]
 
 export default function BottomNav({ user, page, setPage }) {

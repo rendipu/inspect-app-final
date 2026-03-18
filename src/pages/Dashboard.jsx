@@ -6,17 +6,17 @@ const TODAY = new Date().toISOString().split('T')[0]
 
 export default function Dashboard({ user, data, setPage, setSelUnit, syncing, lastSync }) {
   const { units, schedules, inspections } = data
-  const [scan,    setScan]    = useState('')
+  const [scan, setScan] = useState('')
   const [scanRes, setScanRes] = useState(null)
 
   const todaySch = schedules.filter(s => s.tanggal === TODAY)
-  const done     = todaySch.filter(s => s.status === 'done').length
-  const total    = todaySch.length
-  const pct      = total > 0 ? Math.round(done / total * 100) : 0
+  const done = todaySch.filter(s => s.status === 'done').length
+  const total = todaySch.length
+  const pct = total > 0 ? Math.round(done / total * 100) : 0
   const pctColor = pct >= 100 ? 'var(--ok)' : pct >= 60 ? 'var(--p)' : 'var(--err)'
 
   const handleScan = () => {
-    const u = units.find(x => x.nomor_unit === scan || x.qr === scan)
+    const u = units.find(x => x.nomor_unit === scan || x.qr_code === scan)
     setScanRes(u ?? 'notfound')
   }
 
@@ -36,9 +36,9 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }} className="g3">
         {[
-          { label: 'Jadwal Hari Ini',  val: total,   sub: 'unit dijadwalkan', border: 'var(--p)'   },
-          { label: 'Sudah Diinspeksi', val: done,    sub: 'unit selesai',     border: 'var(--ok)'  },
-          { label: 'Pencapaian',       val: pct+'%', sub: `${done}/${total} unit`, border: pctColor },
+          { label: 'Jadwal Hari Ini', val: total, sub: 'unit dijadwalkan', border: 'var(--p)' },
+          { label: 'Sudah Diinspeksi', val: done, sub: 'unit selesai', border: 'var(--ok)' },
+          { label: 'Pencapaian', val: pct + '%', sub: `${done}/${total} unit`, border: pctColor },
         ].map(c => (
           <div key={c.label} className="card" style={{ borderTop: `3px solid ${c.border}`, padding: '16px' }}>
             <div className="lbl" style={{ marginBottom: 6 }}>{c.label}</div>
@@ -75,17 +75,17 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
                     <td style={{ color: 'var(--t3)' }}>{u.model}</td>
                     <td><Badge type={s.status} /></td>
                     <td>
-  {s.status === 'scheduled' && (user.role === 'mekanik' || user.role === 'admin') && (
-    <button className="btn-y btn-sm" onClick={() => { setSelUnit(u); setPage('inspection') }}>
-      Inspeksi →
-    </button>
-  )}
-  {s.status === 'done' && (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ color: 'var(--ok)', fontSize: 12, fontWeight: 700 }}>✓ Selesai</span>
-    </div>
-  )}
-</td>
+                      {s.status === 'scheduled' && (user.role === 'mekanik' || user.role === 'admin') && (
+                        <button className="btn-y btn-sm" onClick={() => { setSelUnit(u); setPage('inspection') }}>
+                          Inspeksi →
+                        </button>
+                      )}
+                      {s.status === 'done' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: 'var(--ok)', fontSize: 12, fontWeight: 700 }}>✓ Selesai</span>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -123,24 +123,24 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
                 <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: 'var(--pd)' }}>{scanRes.nomor_unit}</div>
                 <div style={{ fontSize: 13, color: 'var(--t2)' }}>{scanRes.tipe} · {scanRes.model} · {scanRes.tahun}</div>
                 <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 4 }}>
-  HM Terkini:{' '}
-  <strong style={{ color: 'var(--t)' }}>
-    {(data.units.find(u => u.id === scanRes.id)?.hm || scanRes.hm).toLocaleString()} jam
-  </strong>{' '}
-  · Inspeksi:{' '}
-  <strong style={{ color: 'var(--pd)' }}>
-    {inspections.filter(i => i.unit_id === scanRes.id).length}x
-  </strong>
-</div>
+                  HM Terkini:{' '}
+                  <strong style={{ color: 'var(--t)' }}>
+                    {(data.units.find(u => u.id === scanRes.id)?.hm || scanRes.hm).toLocaleString()} jam
+                  </strong>{' '}
+                  · Inspeksi:{' '}
+                  <strong style={{ color: 'var(--pd)' }}>
+                    {inspections.filter(i => i.unit_id === scanRes.id).length}x
+                  </strong>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button className="btn-oy btn-sm" onClick={() => setPage('history')}>History</button>
                 {schedules.find(s => s.unit_id === scanRes.id && s.tanggal === TODAY && s.status === 'scheduled') &&
                   (user.role === 'mekanik' || user.role === 'admin') && (
-                  <button className="btn-y btn-sm" onClick={() => { setSelUnit(scanRes); setPage('inspection') }}>
-                    Mulai Inspeksi →
-                  </button>
-                )}
+                    <button className="btn-y btn-sm" onClick={() => { setSelUnit(scanRes); setPage('inspection') }}>
+                      Mulai Inspeksi →
+                    </button>
+                  )}
               </div>
             </div>
           </div>

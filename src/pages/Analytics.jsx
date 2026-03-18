@@ -26,14 +26,14 @@ function fmtMonth(d) {
 
 // Hitung week number dalam tahun
 function getWeekKey(dateStr) {
-  const d    = new Date(dateStr)
+  const d = new Date(dateStr)
   const startOfYear = new Date(d.getFullYear(), 0, 1)
   const week = Math.ceil(((d - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7)
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
 function getWeekLabel(dateStr) {
-  const d   = new Date(dateStr)
+  const d = new Date(dateStr)
   const mon = new Date(d)
   mon.setDate(d.getDate() - d.getDay() + 1)
   return fmtDate(mon.toISOString())
@@ -76,21 +76,21 @@ function TrendChart({ inspections, units, period }) {
 
   // Hitung range periode
   const rangeMap = {}
-  const now      = new Date()
+  const now = new Date()
 
   if (period === 'weekly') {
     // 8 minggu terakhir
     for (let w = 7; w >= 0; w--) {
-      const d    = new Date(now)
+      const d = new Date(now)
       d.setDate(d.getDate() - w * 7)
-      const key  = getWeekKey(d.toISOString())
+      const key = getWeekKey(d.toISOString())
       const label = getWeekLabel(d.toISOString())
       if (!rangeMap[key]) rangeMap[key] = { key, label, inspeksi: 0, bad: 0, repair: 0 }
     }
   } else {
     // 6 bulan terakhir
     for (let m = 5; m >= 0; m--) {
-      const d   = new Date(now.getFullYear(), now.getMonth() - m, 1)
+      const d = new Date(now.getFullYear(), now.getMonth() - m, 1)
       const key = getMonthKey(d.toISOString())
       const label = fmtMonth(d.toISOString())
       if (!rangeMap[key]) rangeMap[key] = { key, label, inspeksi: 0, bad: 0, repair: 0 }
@@ -105,10 +105,10 @@ function TrendChart({ inspections, units, period }) {
 
     if (!rangeMap[key]) return
     rangeMap[key].inspeksi++
-    ;(ins.answers || []).forEach(a => {
-      if (a.answer === 'bad')    rangeMap[key].bad++
-      if (a.answer === 'repair') rangeMap[key].repair++
-    })
+      ; (ins.answers || []).forEach(a => {
+        if (a.answer === 'bad') rangeMap[key].bad++
+        if (a.answer === 'repair') rangeMap[key].repair++
+      })
   })
 
   const chartData = Object.values(rangeMap)
@@ -119,7 +119,7 @@ function TrendChart({ inspections, units, period }) {
       <div style={{ marginBottom: 14 }}>
         <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
-          {units.map(u => <option key={u.id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
+          {units.map(u => <option key={u._id} value={u._id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
       </div>
 
@@ -151,8 +151,8 @@ function TrendChart({ inspections, units, period }) {
             <YAxis tick={{ fill: 'var(--t3)', fontSize: 10 }} allowDecimals={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
             <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="bad"    name="Order Part" fill="#dc2626" radius={[3,3,0,0]} />
-            <Bar dataKey="repair" name="Repair"     fill="#d97706" radius={[3,3,0,0]} />
+            <Bar dataKey="bad" name="Order Part" fill="#dc2626" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="repair" name="Repair" fill="#d97706" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -164,13 +164,13 @@ function TrendChart({ inspections, units, period }) {
 function TopDamage({ inspections, questions }) {
   const counts = {}
   inspections.forEach(ins => {
-    ;(ins.answers || []).forEach(a => {
+    ; (ins.answers || []).forEach(a => {
       if (a.answer !== 'bad' && a.answer !== 'repair') return
-      const q = a.question || questions.find(x => x.id === a.question_id)
+      const q = a.question || questions.find(x => x._id === a.question_id)
       if (!q) return
-      const key = q.id
+      const key = q._id
       if (!counts[key]) counts[key] = { pertanyaan: q.pertanyaan, kategori: q.kategori, bad: 0, repair: 0 }
-      if (a.answer === 'bad')    counts[key].bad++
+      if (a.answer === 'bad') counts[key].bad++
       if (a.answer === 'repair') counts[key].repair++
     })
   })
@@ -205,7 +205,7 @@ function TopDamage({ inspections, questions }) {
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
                 <span style={{ fontSize: 10, color: 'var(--t3)' }}>{item.kategori}</span>
-                {item.bad    > 0 && <span style={{ fontSize: 10, color: 'var(--err)', fontWeight: 700 }}>{item.bad} order</span>}
+                {item.bad > 0 && <span style={{ fontSize: 10, color: 'var(--err)', fontWeight: 700 }}>{item.bad} order</span>}
                 {item.repair > 0 && <span style={{ fontSize: 10, color: 'var(--wn)', fontWeight: 700 }}>{item.repair} repair</span>}
               </div>
             </div>
@@ -223,7 +223,7 @@ function TopUnits({ inspections, units }) {
     const bad = (ins.answers || []).filter(a => a.answer === 'bad' || a.answer === 'repair').length
     if (bad === 0) return
     if (!counts[ins.unit_id]) counts[ins.unit_id] = { unit_id: ins.unit_id, total: 0, inspeksi: 0 }
-    counts[ins.unit_id].total   += bad
+    counts[ins.unit_id].total += bad
     counts[ins.unit_id].inspeksi++
   })
 
@@ -238,7 +238,7 @@ function TopUnits({ inspections, units }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {sorted.map((item, i) => {
-        const u = units.find(x => x.id === item.unit_id)
+        const u = units.find(x => x._id === item.unit_id)
         return (
           <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: i === 0 ? 'var(--err)' : 'var(--bd2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: i === 0 ? '#fff' : 'var(--t3)', flexShrink: 0 }}>
@@ -271,17 +271,17 @@ function MekanikPerforma({ inspections, users }) {
   const mechs = users.filter(u => u.role === 'mekanik')
 
   const stats = mechs.map(m => {
-    const myIns   = inspections.filter(i => (i.mekaniks || []).some(mk => mk.user_id === m.id || mk.user?.id === m.id))
+    const myIns = inspections.filter(i => (i.mekaniks || []).some(mk => mk.user_id === m._id || mk.user?._id === m._id))
     const totalBad = myIns.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0)
     const totalRep = myIns.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0)
     return {
-      nama:     m.nama,
-      nrp:      m.nrp,
-      jabatan:  m.jabatan,
+      nama: m.nama,
+      nrp: m.nrp,
+      jabatan: m.jabatan,
       inspeksi: myIns.length,
-      bad:      totalBad,
-      repair:   totalRep,
-      total:    totalBad + totalRep,
+      bad: totalBad,
+      repair: totalRep,
+      total: totalBad + totalRep,
     }
   }).filter(s => s.inspeksi > 0).sort((a, b) => b.inspeksi - a.inspeksi)
 
@@ -324,11 +324,11 @@ function MekanikPerforma({ inspections, users }) {
 
 // ─── Main Analytics ───────────────────────────────────────────────────
 const TABS = [
-  { k: 'overview',  l: '📊 Overview'  },
-  { k: 'weekly',    l: '📅 Mingguan'  },
-  { k: 'monthly',   l: '🗓 Bulanan'   },
-  { k: 'unit',      l: '🚜 Per Unit'  },
-  { k: 'mekanik',   l: '👤 Mekanik'   },
+  { k: 'overview', l: '📊 Overview' },
+  { k: 'weekly', l: '📅 Mingguan' },
+  { k: 'monthly', l: '🗓 Bulanan' },
+  { k: 'unit', l: '🚜 Per Unit' },
+  { k: 'mekanik', l: '👤 Mekanik' },
 ]
 
 export default function Analytics({ data, syncing }) {
@@ -337,25 +337,25 @@ export default function Analytics({ data, syncing }) {
 
   // Summary counts
   const tInspeksi = inspections.length
-  const tBad   = inspections.reduce((s, i) => s + (i.answers||[]).filter(a => a.answer==='bad').length,    0)
-  const tRep   = inspections.reduce((s, i) => s + (i.answers||[]).filter(a => a.answer==='repair').length, 0)
-  const tGood  = inspections.reduce((s, i) => s + (i.answers||[]).filter(a => a.answer==='good').length,   0)
-  const tAll   = tBad + tRep + tGood || 1
+  const tBad = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0)
+  const tRep = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0)
+  const tGood = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'good').length, 0)
+  const tAll = tBad + tRep + tGood || 1
 
   const donut = [
-    { name: 'Good',       val: tGood, color: '#16a34a' },
-    { name: 'Order Part', val: tBad,  color: '#dc2626' },
-    { name: 'Repair',     val: tRep,  color: '#d97706' },
+    { name: 'Good', val: tGood, color: '#16a34a' },
+    { name: 'Order Part', val: tBad, color: '#dc2626' },
+    { name: 'Repair', val: tRep, color: '#d97706' },
   ].filter(d => d.val > 0)
 
   const byCat = useMemo(() => {
     const kats = [...new Set(questions.map(q => q.kategori))]
     return kats.map(k => {
-      const qids = questions.filter(q => q.kategori === k).map(q => q.id)
+      const qids = questions.filter(q => q.kategori === k).map(q => q._id)
       let bad = 0, rep = 0
       inspections.forEach(ins => ins.answers?.forEach(a => {
         if (!qids.includes(a.question_id)) return
-        if (a.answer === 'bad')    bad++
+        if (a.answer === 'bad') bad++
         if (a.answer === 'repair') rep++
       }))
       return { name: k, 'Order Part': bad, Repair: rep, total: bad + rep }
@@ -388,10 +388,10 @@ export default function Analytics({ data, syncing }) {
         <>
           {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }} className="g4">
-            <StatCard label="Total Inspeksi" value={tInspeksi} color="var(--p)"   />
-            <StatCard label="Good"           value={tGood}     color="var(--ok)"  sub={`${Math.round(tGood/tAll*100)}%`} />
-            <StatCard label="Order Part"     value={tBad}      color="var(--err)" sub={`${Math.round(tBad/tAll*100)}%`}  />
-            <StatCard label="Repair"         value={tRep}      color="var(--wn)"  sub={`${Math.round(tRep/tAll*100)}%`}  />
+            <StatCard label="Total Inspeksi" value={tInspeksi} color="var(--p)" />
+            <StatCard label="Good" value={tGood} color="var(--ok)" sub={`${Math.round(tGood / tAll * 100)}%`} />
+            <StatCard label="Order Part" value={tBad} color="var(--err)" sub={`${Math.round(tBad / tAll * 100)}%`} />
+            <StatCard label="Repair" value={tRep} color="var(--wn)" sub={`${Math.round(tRep / tAll * 100)}%`} />
           </div>
 
           {/* Donut + kategori */}
@@ -415,8 +415,8 @@ export default function Analytics({ data, syncing }) {
                   <XAxis dataKey="name" tick={{ fill: 'var(--t3)', fontSize: 9 }} />
                   <YAxis tick={{ fill: 'var(--t3)', fontSize: 10 }} allowDecimals={false} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Bar dataKey="Order Part" fill="#dc2626" radius={[3,3,0,0]} />
-                  <Bar dataKey="Repair"     fill="#d97706" radius={[3,3,0,0]} />
+                  <Bar dataKey="Order Part" fill="#dc2626" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Repair" fill="#d97706" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </Section>
@@ -454,12 +454,12 @@ export default function Analytics({ data, syncing }) {
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
                 data={units.map(u => {
-                  const ins = inspections.filter(i => i.unit_id === u.id)
+                  const ins = inspections.filter(i => i.unit_id === u._id)
                   return {
                     name: u.nomor_unit,
-                    'Order Part': ins.reduce((s,i) => s+(i.answers||[]).filter(a=>a.answer==='bad').length,    0),
-                    Repair:       ins.reduce((s,i) => s+(i.answers||[]).filter(a=>a.answer==='repair').length, 0),
-                    Inspeksi:     ins.length,
+                    'Order Part': ins.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0),
+                    Repair: ins.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0),
+                    Inspeksi: ins.length,
                   }
                 })}
                 margin={{ top: 5, right: 5, bottom: 5, left: -20 }}
@@ -469,9 +469,9 @@ export default function Analytics({ data, syncing }) {
                 <YAxis tick={{ fill: 'var(--t3)', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="Order Part" fill="#dc2626" radius={[3,3,0,0]} />
-                <Bar dataKey="Repair"     fill="#d97706" radius={[3,3,0,0]} />
-                <Bar dataKey="Inspeksi"   fill="#f59e0b" radius={[3,3,0,0]} />
+                <Bar dataKey="Order Part" fill="#dc2626" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Repair" fill="#d97706" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Inspeksi" fill="#f59e0b" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Section>

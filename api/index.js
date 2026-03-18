@@ -430,26 +430,39 @@ export default async function handler(req, res) {
             if (!requireRole(req, res, ['admin'])) return
             const { unit_id, hari } = req.body
             if (!unit_id || !hari?.length) return res.status(400).json({ error: 'Field wajib: unit_id, hari' })
-            const s = await RecurringSchedule.findOneAndUpdate(
-                { unit_id: parseInt(unit_id) }, { hari, aktif: true },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            )
+
+            // BUGFIX: findOneAndUpdate+upsert tidak trigger pre('save') hook
+            // sehingga field 'id' (integer auto-increment) tidak ter-set.
+            // Fix: cek manual → update jika ada, create baru jika belum ada.
+            let s = await RecurringSchedule.findOne({ unit_id: parseInt(unit_id) })
+            if (s) {
+                s.hari = hari
+                s.aktif = true
+                await s.save()
+            } else {
+                s = await RecurringSchedule.create({ unit_id: parseInt(unit_id), hari, aktif: true })
+            }
+
             const unit = await Unit.findOne({ id: parseInt(unit_id) }).lean()
             return res.status(201).json({ ...s.toObject(), unit })
         }
     }
 
-    const schedIdMatch = url.match(/^\/api\/schedules\/(\d+)$/)
+    // Terima integer id (\d+) ATAU MongoDB ObjectId (24 hex chars)
+    const schedIdMatch = url.match(/^\/api\/schedules\/(\d+|[a-f0-9]{24})$/)
     if (schedIdMatch) {
-        const id = parseInt(schedIdMatch[1])
+        const raw = schedIdMatch[1]
+        // Tentukan filter: integer id atau ObjectId _id
+        const filter = /^\d+$/.test(raw) ? { id: parseInt(raw) } : { _id: raw }
+
         if (!requireRole(req, res, ['admin'])) return
         if (meth === 'PATCH') {
-            const s = await RecurringSchedule.findOneAndUpdate({ id }, req.body, { new: true })
+            const s = await RecurringSchedule.findOneAndUpdate(filter, req.body, { new: true })
             if (!s) return res.status(404).json({ error: 'Jadwal tidak ditemukan' })
             return res.json(s)
         }
         if (meth === 'DELETE') {
-            const s = await RecurringSchedule.findOneAndUpdate({ id }, { aktif: false }, { new: true })
+            const s = await RecurringSchedule.findOneAndUpdate(filter, { aktif: false }, { new: true })
             if (!s) return res.status(404).json({ error: 'Jadwal tidak ditemukan' })
             return res.json({ message: 'Jadwal dinonaktifkan' })
         }

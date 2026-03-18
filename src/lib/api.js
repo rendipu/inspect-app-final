@@ -69,7 +69,6 @@ export const api = {
 
   // ── Inspections ─────────────────────────────────────────────────────
   getInspections: (params = {}) => {
-    // Default limit tinggi agar semua data masuk (frontend filter secara lokal)
     const p = { limit: 200, ...params }
     const qs = new URLSearchParams(p).toString()
     return request(`/api/inspections${qs ? `?${qs}` : ''}`)
@@ -91,13 +90,22 @@ export const api = {
   updateStock: (id, data) => request(`/api/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteStock: (id) => request(`/api/stock/${id}`, { method: 'DELETE' }),
 
-  // stockMovement — backend menerima { delta, catatan }
-  // delta positif = masuk, negatif = keluar
-  stockMovement: (id, moveData) => {
-    let delta = parseInt(moveData.jumlah) || 0
-    if (moveData.tipe === 'keluar') delta = -Math.abs(delta)
-    if (moveData.tipe === 'masuk') delta = Math.abs(delta)
-    if (moveData.tipe === 'adjustment') delta = parseInt(moveData.jumlah) // akan di-handle server sebagai set absolute
+  // BUG FIX #13: stockMovement 'adjustment' sebelumnya mengirim nilai absolut sebagai delta,
+  // tapi server menggunakan $inc (bukan $set), sehingga stok menjadi stok_lama + target_value
+  // bukan target_value itu sendiri.
+  // Fix: wajib sertakan currentStock agar delta dihitung sebagai selisih yang benar.
+  stockMovement: (id, moveData, currentStock = 0) => {
+    let delta = 0
+    const jumlah = parseInt(moveData.jumlah) || 0
+
+    if (moveData.tipe === 'keluar') {
+      delta = -Math.abs(jumlah)
+    } else if (moveData.tipe === 'masuk') {
+      delta = Math.abs(jumlah)
+    } else if (moveData.tipe === 'adjustment') {
+      // Hitung selisih: target - stok saat ini
+      delta = jumlah - currentStock
+    }
 
     return request(`/api/stock/${id}`, {
       method: 'PATCH',
