@@ -48,7 +48,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
   // Load pertanyaan saat unit dipilih
   useEffect(() => {
     if (!unitId || alreadyDone) { setQuestions([]); return }
-    const unit = units.find(u => u.id === parseInt(unitId))
+    const unit = units.find(u => u._id === unitId)
     if (!unit) return
     api.getQuestions({ unit_tipe: unit.tipe, brand: unit.brand })
       .then(setQuestions)
@@ -323,11 +323,11 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t)', marginBottom: 4 }}>
                     {q.urutan}. {q.pertanyaan}
                   </div>
-                  {(q.unit_tipe || q.brand) && (
+                  {(Array.isArray(q.unit_tipe) ? q.unit_tipe.length > 0 : q.unit_tipe) || (Array.isArray(q.brand) ? q.brand.length > 0 : q.brand) ? (
                     <div style={{ fontSize: 10, color: 'var(--inf)', marginBottom: 8 }}>
-                      {q.brand ? `Khusus: ${q.brand} ${q.unit_tipe}` : `Khusus: ${q.unit_tipe}`}
+                      Khusus: {[...(Array.isArray(q.brand) ? q.brand : (q.brand ? [q.brand] : [])), ...(Array.isArray(q.unit_tipe) ? q.unit_tipe : (q.unit_tipe ? [q.unit_tipe] : []))].join(', ')}
                     </div>
-                  )}
+                  ) : null}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: (a.answer === 'bad' || a.answer === 'repair') ? 12 : 0 }}>
                     {['good', 'bad', 'repair'].map(opt => {
                       const c = ANS_COLOR[opt]; const sel = a.answer === opt

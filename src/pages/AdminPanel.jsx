@@ -230,11 +230,41 @@ function UnitsTab({ units, refetch }) {
   )
 }
 
+// ─── Tag Input Component ──────────────────────────────────────────────────────
+function TagInput({ tags, onChange, placeholder }) {
+  const [input, setInput] = useState('')
+  const add = (val) => {
+    const v = val.trim()
+    if (v && !tags.includes(v)) onChange([...tags, v])
+    setInput('')
+  }
+  const remove = (i) => onChange(tags.filter((_, idx) => idx !== i))
+  const handleKey = (e) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input) }
+    if (e.key === 'Backspace' && !input && tags.length) remove(tags.length - 1)
+  }
+  return (
+    <div style={{ ...IS, display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 8px', minHeight: 34, alignItems: 'center', cursor: 'text' }}
+      onClick={e => e.currentTarget.querySelector('input')?.focus()}>
+      {tags.map((t, i) => (
+        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'var(--pl)', color: 'var(--wn)', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+          {t}
+          <span onClick={(e) => { e.stopPropagation(); remove(i) }} style={{ cursor: 'pointer', fontSize: 13, lineHeight: 1, opacity: 0.7 }}>×</span>
+        </span>
+      ))}
+      <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
+        onBlur={() => { if (input.trim()) add(input) }}
+        placeholder={tags.length === 0 ? placeholder : ''}
+        style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12, color: 'var(--t)', flex: 1, minWidth: 60, padding: '2px 0' }} />
+    </div>
+  )
+}
+
 // ─── Questions Tab ────────────────────────────────────────────────────────────
 function QuestionsTab({ questions, refetch }) {
   const [editRow, setEditRow] = useState(null)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ kategori: '', pertanyaan: '', urutan: '', unit_tipe: '', brand: '' })
+  const [form, setForm] = useState({ kategori: '', pertanyaan: '', urutan: '', unit_tipe: [], brand: [] })
   const [saving, setSaving] = useState(false)
 
   const saveNew = async () => {
@@ -243,7 +273,7 @@ function QuestionsTab({ questions, refetch }) {
     try {
       await api.createQuestion(form)
       await refetch()
-      setForm({ kategori: '', pertanyaan: '', urutan: '', unit_tipe: '', brand: '' })
+      setForm({ kategori: '', pertanyaan: '', urutan: '', unit_tipe: [], brand: [] })
       setShowForm(false)
     } catch (e) { alert(e.message) } finally { setSaving(false) }
   }
@@ -251,7 +281,7 @@ function QuestionsTab({ questions, refetch }) {
   const saveEdit = async () => {
     setSaving(true)
     try {
-      await api.updateQuestion(editRow.id, editRow)  // PUT /api/questions/:id — integer id
+      await api.updateQuestion(editRow.id, editRow)
       await refetch()
       setEditRow(null)
     } catch (e) { alert(e.message) } finally { setSaving(false) }
@@ -262,6 +292,9 @@ function QuestionsTab({ questions, refetch }) {
     try { await api.deleteQuestion(id); await refetch() } catch (e) { alert(e.message) }
   }
 
+  // Helper: normalize old string data to array
+  const toArr = (v) => Array.isArray(v) ? v : (v ? [v] : [])
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -271,18 +304,24 @@ function QuestionsTab({ questions, refetch }) {
 
       {showForm && (
         <div className="card" style={{ marginBottom: 12, background: 'var(--sfy)' }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <input placeholder="Kategori *" value={form.kategori}
               onChange={e => setForm(v => ({ ...v, kategori: e.target.value }))} style={{ ...IS, width: 120 }} />
             <input placeholder="Pertanyaan *" value={form.pertanyaan}
               onChange={e => setForm(v => ({ ...v, pertanyaan: e.target.value }))} style={{ ...IS, flex: 1, minWidth: 200 }} />
             <input placeholder="No." type="number" value={form.urutan}
               onChange={e => setForm(v => ({ ...v, urutan: e.target.value }))} style={{ ...IS, width: 60 }} />
-            <input placeholder="Tipe Unit (kosong=semua)" value={form.unit_tipe}
-              onChange={e => setForm(v => ({ ...v, unit_tipe: e.target.value }))} style={{ ...IS, width: 160 }} />
-            <input placeholder="Brand (kosong=semua)" value={form.brand}
-              onChange={e => setForm(v => ({ ...v, brand: e.target.value }))} style={{ ...IS, width: 140 }} />
-            <button className="btn-ok" onClick={saveNew} disabled={saving}>{saving ? '...' : 'Simpan'}</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>Tipe Unit (Enter untuk tambah, kosong=semua)</div>
+              <TagInput tags={form.unit_tipe} onChange={v => setForm(f => ({ ...f, unit_tipe: v }))} placeholder="Ketik tipe, tekan Enter..." />
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 4 }}>Brand (Enter untuk tambah, kosong=semua)</div>
+              <TagInput tags={form.brand} onChange={v => setForm(f => ({ ...f, brand: v }))} placeholder="Ketik brand, tekan Enter..." />
+            </div>
+            <button className="btn-ok" onClick={saveNew} disabled={saving} style={{ alignSelf: 'flex-end', marginBottom: 2 }}>{saving ? '...' : 'Simpan'}</button>
           </div>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t3)' }}>
             💡 Kosongkan Tipe Unit &amp; Brand agar pertanyaan berlaku untuk semua unit
@@ -294,31 +333,34 @@ function QuestionsTab({ questions, refetch }) {
         {[...questions].sort((a, b) => a.urutan - b.urutan).map(q => (
           <div key={q._id} className="scard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             {editRow?.id === q.id ? (
-              <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <input type="number" value={editRow.urutan}
                   onChange={e => setEditRow(v => ({ ...v, urutan: parseInt(e.target.value) }))} style={{ ...IS, width: 55 }} />
                 <input value={editRow.kategori}
                   onChange={e => setEditRow(v => ({ ...v, kategori: e.target.value }))} style={{ ...IS, width: 110 }} />
                 <input value={editRow.pertanyaan}
                   onChange={e => setEditRow(v => ({ ...v, pertanyaan: e.target.value }))} style={{ ...IS, flex: 1, minWidth: 180 }} />
-                <input value={editRow.unit_tipe || ''} placeholder="Tipe"
-                  onChange={e => setEditRow(v => ({ ...v, unit_tipe: e.target.value || null }))} style={{ ...IS, width: 100 }} />
-                <input value={editRow.brand || ''} placeholder="Brand"
-                  onChange={e => setEditRow(v => ({ ...v, brand: e.target.value || null }))} style={{ ...IS, width: 90 }} />
+                <div style={{ minWidth: 140 }}>
+                  <TagInput tags={toArr(editRow.unit_tipe)} onChange={v => setEditRow(r => ({ ...r, unit_tipe: v }))} placeholder="Tipe..." />
+                </div>
+                <div style={{ minWidth: 120 }}>
+                  <TagInput tags={toArr(editRow.brand)} onChange={v => setEditRow(r => ({ ...r, brand: v }))} placeholder="Brand..." />
+                </div>
                 <button className="btn-ok btn-sm" onClick={saveEdit} disabled={saving}>✓</button>
                 <button className="btn-g btn-sm" onClick={() => setEditRow(null)}>✕</button>
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
                   <span className="mono" style={{ color: 'var(--p)', width: 20, fontWeight: 700 }}>{q.urutan}</span>
                   <span style={{ background: 'var(--pl)', color: 'var(--wn)', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{q.kategori}</span>
                   <span style={{ fontSize: 13, color: 'var(--t)' }}>{q.pertanyaan}</span>
-                  {(q.unit_tipe || q.brand) && (
-                    <span style={{ fontSize: 10, color: 'var(--inf)', background: 'var(--infbg)', border: '1px solid var(--infbd)', padding: '1px 6px', borderRadius: 4 }}>
-                      {q.brand ? `${q.brand} ${q.unit_tipe}` : q.unit_tipe}
-                    </span>
-                  )}
+                  {toArr(q.unit_tipe).map((t, i) => (
+                    <span key={'t'+i} style={{ fontSize: 10, color: 'var(--inf)', background: 'var(--infbg)', border: '1px solid var(--infbd)', padding: '1px 6px', borderRadius: 4 }}>{t}</span>
+                  ))}
+                  {toArr(q.brand).map((b, i) => (
+                    <span key={'b'+i} style={{ fontSize: 10, color: 'var(--pd)', background: 'var(--purbg)', border: '1px solid var(--purbd)', padding: '1px 6px', borderRadius: 4 }}>{b}</span>
+                  ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   <button className="btn-g btn-sm" onClick={() => setEditRow({ ...q })}>Edit</button>

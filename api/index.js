@@ -69,8 +69,8 @@ const QuestionSchema = new Schema({
     kategori: { type: String, required: true },
     pertanyaan: { type: String, required: true },
     urutan: { type: Number, default: 0 },
-    unit_tipe: { type: String, default: null },
-    brand: { type: String, default: null },
+    unit_tipe: { type: [String], default: [] },
+    brand: { type: [String], default: [] },
     aktif: { type: Boolean, default: true },
 }, { timestamps: true })
 QuestionSchema.pre('save', async function (next) { if (!this.id) this.id = await nextId('question'); next() })
@@ -367,8 +367,22 @@ export default async function handler(req, res) {
         if (meth === 'GET') {
             const { unit_tipe, brand } = req.query
             let filter = { aktif: true }
-            if (unit_tipe && brand) filter.$or = [{ unit_tipe: null }, { unit_tipe, brand: null }, { unit_tipe, brand }]
-            else if (unit_tipe) filter.$or = [{ unit_tipe: null }, { unit_tipe, brand: null }]
+            if (unit_tipe && brand) {
+                filter.$or = [
+                    { unit_tipe: { $size: 0 } },
+                    { unit_tipe: null },
+                    { unit_tipe: unit_tipe, brand: { $size: 0 } },
+                    { unit_tipe: unit_tipe, brand: null },
+                    { unit_tipe: unit_tipe, brand: brand },
+                ]
+            } else if (unit_tipe) {
+                filter.$or = [
+                    { unit_tipe: { $size: 0 } },
+                    { unit_tipe: null },
+                    { unit_tipe: unit_tipe, brand: { $size: 0 } },
+                    { unit_tipe: unit_tipe, brand: null },
+                ]
+            }
             const qs = await Question.find(filter).sort({ kategori: 1, urutan: 1 }).lean()
             return res.json(qs)
         }
@@ -376,7 +390,7 @@ export default async function handler(req, res) {
             if (!requireRole(req, res, ['admin'])) return
             const { kategori, pertanyaan, urutan, unit_tipe, brand } = req.body
             if (!kategori || !pertanyaan) return res.status(400).json({ error: 'Field wajib: kategori, pertanyaan' })
-            const q = await Question.create({ kategori, pertanyaan, urutan: urutan ? parseInt(urutan) : 0, unit_tipe: unit_tipe || null, brand: brand || null })
+            const q = await Question.create({ kategori, pertanyaan, urutan: urutan ? parseInt(urutan) : 0, unit_tipe: unit_tipe || [], brand: brand || [] })
             return res.status(201).json(q)
         }
     }
