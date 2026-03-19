@@ -3,6 +3,66 @@ import Badge from '../components/Badge'
 import WorkStatusBadge from '../components/WorkStatusBadge'
 import { api } from '../lib/api'
 
+// ─── Lightbox untuk lihat foto fullscreen ────────────────────────────
+function FotoLightbox({ src, onClose }) {
+  if (!src) return null
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 999,
+        background: 'rgba(0,0,0,.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16, cursor: 'zoom-out',
+      }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95vw', maxHeight: '90vh' }}>
+        <img
+          src={src}
+          alt="Foto"
+          style={{ display: 'block', maxWidth: '90vw', maxHeight: '85vh', borderRadius: 10, objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,.5)' }}
+        />
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: -14, right: -14,
+            width: 32, height: 32, borderRadius: '50%',
+            background: '#fff', border: 'none', cursor: 'pointer',
+            fontSize: 18, fontWeight: 700, color: '#333',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,.3)',
+          }}
+        >✕</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Thumbnail foto yang bisa diklik ─────────────────────────────────
+function FotoThumb({ src, border, alt = 'Foto' }) {
+  const [open, setOpen] = useState(false)
+  if (!src) return null
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        onClick={() => setOpen(true)}
+        style={{
+          maxWidth: 120, maxHeight: 90, borderRadius: 6,
+          objectFit: 'cover', border: `1.5px solid ${border}`,
+          cursor: 'zoom-in', display: 'block', marginTop: 8,
+          transition: 'opacity .15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        title="Klik untuk perbesar"
+      />
+      {open && <FotoLightbox src={src} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
 const WORK_OPTIONS = [
   { v: 'belum_dikerjakan', l: '⏺ Belum Dikerjakan', c: 'var(--err)' },
   { v: 'sudah_selesai',    l: '✓ Sudah Dikerjakan',  c: 'var(--ok)'  },
@@ -110,23 +170,27 @@ function WorkStatusButtons({ detail, detailType, user, updating, onWorkStatus })
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {WORK_OPTIONS.map(opt => {
-          const isCurrent  = detail.work_status === opt.v ||
+          const isCurrent   = detail.work_status === opt.v ||
             (opt.v === 'belum_dikerjakan' && !detail.work_status)
-          const isDisabled = updating === updKey || isCurrent
+          const isSelesai   = detail.work_status === 'sudah_selesai'
+          // Non-admin tidak bisa ubah balik ke Belum Dikerjakan jika sudah selesai
+          const isLocked    = opt.v === 'belum_dikerjakan' && isSelesai && user.role !== 'admin'
+          const isDisabled  = updating === updKey || isCurrent || isLocked
           return (
             <button key={opt.v}
               onClick={() => onWorkStatus(detail.id, detailType, opt.v, detail.work_status)}
               disabled={isDisabled}
+              title={isLocked ? 'Hanya Admin yang bisa mengubah kembali ke Belum Dikerjakan' : ''}
               style={{
                 padding: '7px 18px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-                cursor: isDisabled ? 'default' : 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 border: `1.5px solid ${opt.c}`,
                 background: isCurrent ? opt.c : 'transparent',
                 color: isCurrent ? '#fff' : opt.c,
-                opacity: updating === updKey && !isCurrent ? 0.5 : 1,
+                opacity: isDisabled && !isCurrent ? 0.35 : 1,
                 transition: 'all .15s',
               }}>
-              {updating === updKey && !isCurrent ? '⏳' : opt.l}
+              {updating === updKey && !isCurrent ? '⏳' : isLocked ? '🔒' : opt.l}
             </button>
           )
         })}
@@ -180,13 +244,7 @@ function DamageCard({ r, user, updating, onWorkStatus }) {
             <div><span style={{ color: 'var(--t3)' }}>Qty: </span><strong>{r.detail.quantity}</strong></div>
           </div>
           {r.detail.keterangan && <div style={{ fontSize: 11, color: 'var(--t2)', marginBottom: 4 }}>{r.detail.keterangan}</div>}
-          {r.detail.foto_url && (
-            <div style={{ marginTop: 6 }}>
-              <a href={r.detail.foto_url} target="_blank" rel="noreferrer">
-                <img src={r.detail.foto_url} alt="Foto kondisi" style={{ maxWidth: 180, maxHeight: 120, borderRadius: 6, objectFit: 'cover', border: '1.5px solid var(--errbd)', cursor: 'pointer' }} />
-              </a>
-            </div>
-          )}
+          <FotoThumb src={r.detail.foto_url} border="var(--errbd)" alt="Foto kondisi" />
         </div>
       )}
 
@@ -196,11 +254,7 @@ function DamageCard({ r, user, updating, onWorkStatus }) {
           <div style={{ fontSize: 12, color: 'var(--t2)', marginBottom: r.detail.foto_url ? 8 : 0 }}>
             🔧 {r.detail.keterangan || '-'}
           </div>
-          {r.detail.foto_url && (
-            <a href={r.detail.foto_url} target="_blank" rel="noreferrer">
-              <img src={r.detail.foto_url} alt="Foto perbaikan" style={{ maxWidth: 180, maxHeight: 120, borderRadius: 6, objectFit: 'cover', border: '1.5px solid var(--wnbd)', cursor: 'pointer' }} />
-            </a>
-          )}
+          <FotoThumb src={r.detail.foto_url} border="var(--wnbd)" alt="Foto perbaikan" />
           {/* Part order dari repair (jika ada) */}
           {repairHasPart && (
             <div style={{ marginTop: 8, background: 'var(--errbg)', border: '1px solid var(--errbd)', borderRadius: 6, padding: 8 }}>
@@ -372,7 +426,11 @@ function TabKerusakan({ data, user, refetch }) {
     .filter(r => (unitF === 'all' || r.u?.id === parseInt(unitF)) && (typeF === 'all' || r.type === typeF))
     .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
 
-  const handleWorkStatus = async (detailId, type, newStatus) => {
+  const handleWorkStatus = async (detailId, type, newStatus, currentStatus) => {
+    if (currentStatus === 'sudah_selesai' && newStatus === 'belum_dikerjakan' && user.role !== 'admin') {
+      alert('Hanya Admin yang bisa mengubah status kembali ke Belum Dikerjakan.')
+      return
+    }
     setUpdating(`${type}-${detailId}`)
     try {
       await api.updateWorkStatus(detailId, type, { work_status: newStatus })
@@ -458,6 +516,10 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
     .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
 
   const handleWorkStatus = async (detailId, type, newStatus, currentStatus) => {
+    if (currentStatus === 'sudah_selesai' && newStatus === 'belum_dikerjakan' && user.role !== 'admin') {
+      alert('Hanya Admin yang bisa mengubah status kembali ke Belum Dikerjakan.')
+      return
+    }
     setUpdating(`${type}-${detailId}`)
     try {
       await api.updateWorkStatus(detailId, type, { work_status: newStatus })
