@@ -42,6 +42,14 @@ function OrderCard({ o, showApprove, onApprove, onReject, onWorkStatus, updating
         <div><span style={{ color: 'var(--t3)' }}>Ket: </span>{o.po.keterangan || '-'}</div>
       </div>
 
+      {o.po.foto_url && (
+        <div style={{ marginTop: 8, marginBottom: 8 }}>
+          <a href={o.po.foto_url} target="_blank" rel="noreferrer">
+            <img src={o.po.foto_url} alt="Foto kondisi" style={{ maxWidth: 200, maxHeight: 130, borderRadius: 6, objectFit: 'cover', border: '1.5px solid var(--errbd)', cursor: 'pointer' }} />
+          </a>
+        </div>
+      )}
+
       {showApprove && (
         <div style={{ display: 'flex', gap: 8, marginBottom: o.po.status === 'approved' ? 10 : 0 }}>
           <button className="btn-ok" style={{ flex: 1 }} onClick={onApprove} disabled={updating}>✓ Approve</button>

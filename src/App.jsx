@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
@@ -16,8 +16,8 @@ import HistoryPage    from './pages/HistoryPage'
 import Analytics      from './pages/Analytics'
 import Approvals      from './pages/Approvals'
 import AdminPanel     from './pages/AdminPanel'
-import HourMeter from './pages/HourMeter'
-import StockPage from './pages/stockPage'
+import HourMeter      from './pages/HourMeter'
+import StockPage      from './pages/stockPage'
 
 function LoadingScreen() {
   return (
@@ -59,6 +59,26 @@ export default function App() {
     if (isMob) window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page, isMob])
 
+  // FIX #8: safeData di-memo agar tidak buat objek baru setiap render
+  const safeData = useMemo(
+    () => data || { users: [], units: [], questions: [], schedules: [], inspections: [], recurring: [] },
+    [data]
+  )
+
+  // FIX: useMemo pageMap HARUS di sini — sebelum semua early return
+  // agar jumlah hooks konsisten setiap render (React Rules of Hooks)
+  const pageMap = useMemo(() => ({
+    dashboard:  <Dashboard      user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit} mutate={mutate} syncing={syncing} lastSync={lastSync} />,
+    inspection: <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
+    history:    <HistoryPage    data={safeData} user={user} refetch={refetch} />,
+    analytics:  <Analytics      data={safeData} syncing={syncing} />,
+    approvals:  <Approvals      data={safeData} refetch={refetch} />,
+    admin:      <AdminPanel     data={safeData} refetch={refetch} />,
+    hourmeter:  <HourMeter      data={safeData} user={user} refetch={refetch} />,
+    stock:      <StockPage      user={user} />,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate])
+
   if (!user) return <LoginPage onLogin={handleLogin} />
   if (loading && !data) return <LoadingScreen />
   if (error && !data) return (
@@ -69,19 +89,6 @@ export default function App() {
       <button className="btn-y" style={{ marginTop: 8 }} onClick={refetch}>Coba Lagi</button>
     </div>
   )
-
-  const safeData = data || { users: [], units: [], questions: [], schedules: [], inspections: [], recurring: [] }
-
-  const pageMap = {
-    dashboard:  <Dashboard      user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit} mutate={mutate} syncing={syncing} lastSync={lastSync} />,
-    inspection: <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
-    history:    <HistoryPage    data={safeData} user={user} refetch={refetch} />,
-    analytics:  <Analytics      data={safeData} syncing={syncing} />,
-    approvals:  <Approvals      data={safeData} refetch={refetch} />,
-    admin:      <AdminPanel     data={safeData} refetch={refetch} />,
-    hourmeter: <HourMeter data={safeData} user={user} refetch={refetch} />,
-    stock: <StockPage user={user} />,
-  }
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>

@@ -24,7 +24,6 @@ function fmtMonth(d) {
   return new Date(d).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' })
 }
 
-// Hitung week number dalam tahun
 function getWeekKey(dateStr) {
   const d = new Date(dateStr)
   const startOfYear = new Date(d.getFullYear(), 0, 1)
@@ -55,7 +54,6 @@ function StatCard({ label, value, sub, color }) {
   )
 }
 
-// ─── Section wrapper ─────────────────────────────────────────────────
 function Section({ title, children }) {
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -71,15 +69,15 @@ function TrendChart({ inspections, units, period }) {
 
   const filtered = useMemo(() => {
     if (unitF === 'all') return inspections
+    // FIX #2a: i.unit_id adalah integer, u.id juga integer — cocok
     return inspections.filter(i => i.unit_id === parseInt(unitF))
-  }, [inspections, unitF, period])
+    // FIX #11: hapus 'period' dari deps — tidak dipakai di dalam fungsi ini
+  }, [inspections, unitF])
 
-  // Hitung range periode
   const rangeMap = {}
   const now = new Date()
 
   if (period === 'weekly') {
-    // 8 minggu terakhir
     for (let w = 7; w >= 0; w--) {
       const d = new Date(now)
       d.setDate(d.getDate() - w * 7)
@@ -88,7 +86,6 @@ function TrendChart({ inspections, units, period }) {
       if (!rangeMap[key]) rangeMap[key] = { key, label, inspeksi: 0, bad: 0, repair: 0 }
     }
   } else {
-    // 6 bulan terakhir
     for (let m = 5; m >= 0; m--) {
       const d = new Date(now.getFullYear(), now.getMonth() - m, 1)
       const key = getMonthKey(d.toISOString())
@@ -97,33 +94,30 @@ function TrendChart({ inspections, units, period }) {
     }
   }
 
-  // Isi data
   filtered.forEach(ins => {
     const key = period === 'weekly'
       ? getWeekKey(ins.tanggal)
       : getMonthKey(ins.tanggal)
-
     if (!rangeMap[key]) return
     rangeMap[key].inspeksi++
-      ; (ins.answers || []).forEach(a => {
-        if (a.answer === 'bad') rangeMap[key].bad++
-        if (a.answer === 'repair') rangeMap[key].repair++
-      })
+    ;(ins.answers || []).forEach(a => {
+      if (a.answer === 'bad') rangeMap[key].bad++
+      if (a.answer === 'repair') rangeMap[key].repair++
+    })
   })
 
   const chartData = Object.values(rangeMap)
 
   return (
     <div>
-      {/* Filter unit */}
       <div style={{ marginBottom: 14 }}>
+        {/* FIX #2a: value={u.id} (integer) agar parseInt cocok dengan i.unit_id */}
         <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
-          {units.map(u => <option key={u._id} value={u._id}>{u.nomor_unit} — {u.tipe}</option>)}
+          {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
       </div>
 
-      {/* Line chart: jumlah inspeksi */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
           Jumlah Inspeksi
@@ -139,7 +133,6 @@ function TrendChart({ inspections, units, period }) {
         </ResponsiveContainer>
       </div>
 
-      {/* Bar chart: kerusakan */}
       <div>
         <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
           Trend Kerusakan
@@ -164,12 +157,12 @@ function TrendChart({ inspections, units, period }) {
 function TopDamage({ inspections, questions }) {
   const counts = {}
   inspections.forEach(ins => {
-    ; (ins.answers || []).forEach(a => {
+    ;(ins.answers || []).forEach(a => {
       if (a.answer !== 'bad' && a.answer !== 'repair') return
-      const q = a.question || questions.find(x => x._id === a.question_id)
-      if (!q) return
-      const key = q._id
-      if (!counts[key]) counts[key] = { pertanyaan: q.pertanyaan, kategori: q.kategori, bad: 0, repair: 0 }
+      // Pakai question_pertanyaan dan question_kategori dari embed (bukan lookup)
+      if (!a.question_pertanyaan) return
+      const key = a.question_id
+      if (!counts[key]) counts[key] = { pertanyaan: a.question_pertanyaan, kategori: a.question_kategori, bad: 0, repair: 0 }
       if (a.answer === 'bad') counts[key].bad++
       if (a.answer === 'repair') counts[key].repair++
     })
@@ -238,7 +231,8 @@ function TopUnits({ inspections, units }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {sorted.map((item, i) => {
-        const u = units.find(x => x._id === item.unit_id)
+        // FIX #2b: unit_id adalah integer, cocokkan dengan u.id (integer)
+        const u = units.find(x => x.id === item.unit_id)
         return (
           <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: i === 0 ? 'var(--err)' : 'var(--bd2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: i === 0 ? '#fff' : 'var(--t3)', flexShrink: 0 }}>
@@ -271,7 +265,10 @@ function MekanikPerforma({ inspections, users }) {
   const mechs = users.filter(u => u.role === 'mekanik')
 
   const stats = mechs.map(m => {
-    const myIns = inspections.filter(i => (i.mekaniks || []).some(mk => mk.user_id === m._id || mk.user?._id === m._id))
+    // FIX: mekaniks embed menyimpan user_id (integer), cocokkan dengan m.id (integer)
+    const myIns = inspections.filter(i =>
+      (i.mekaniks || []).some(mk => mk.user_id === m.id)
+    )
     const totalBad = myIns.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0)
     const totalRep = myIns.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0)
     return {
@@ -325,36 +322,35 @@ function MekanikPerforma({ inspections, users }) {
 // ─── Main Analytics ───────────────────────────────────────────────────
 const TABS = [
   { k: 'overview', l: '📊 Overview' },
-  { k: 'weekly', l: '📅 Mingguan' },
-  { k: 'monthly', l: '🗓 Bulanan' },
-  { k: 'unit', l: '🚜 Per Unit' },
-  { k: 'mekanik', l: '👤 Mekanik' },
+  { k: 'weekly',   l: '📅 Mingguan' },
+  { k: 'monthly',  l: '🗓 Bulanan'  },
+  { k: 'unit',     l: '🚜 Per Unit' },
+  { k: 'mekanik',  l: '👤 Mekanik'  },
 ]
 
 export default function Analytics({ data, syncing }) {
   const { units, inspections, questions, users } = data
   const [tab, setTab] = useState('overview')
 
-  // Summary counts
   const tInspeksi = inspections.length
-  const tBad = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0)
-  const tRep = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0)
+  const tBad  = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0)
+  const tRep  = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0)
   const tGood = inspections.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'good').length, 0)
-  const tAll = tBad + tRep + tGood || 1
+  const tAll  = tBad + tRep + tGood || 1
 
   const donut = [
-    { name: 'Good', val: tGood, color: '#16a34a' },
-    { name: 'Order Part', val: tBad, color: '#dc2626' },
-    { name: 'Repair', val: tRep, color: '#d97706' },
+    { name: 'Good',       val: tGood, color: '#16a34a' },
+    { name: 'Order Part', val: tBad,  color: '#dc2626' },
+    { name: 'Repair',     val: tRep,  color: '#d97706' },
   ].filter(d => d.val > 0)
 
   const byCat = useMemo(() => {
     const kats = [...new Set(questions.map(q => q.kategori))]
     return kats.map(k => {
-      const qids = questions.filter(q => q.kategori === k).map(q => q._id)
+      // FIX: cocokkan berdasarkan question_kategori embed, bukan lookup question_id
       let bad = 0, rep = 0
       inspections.forEach(ins => ins.answers?.forEach(a => {
-        if (!qids.includes(a.question_id)) return
+        if (a.question_kategori !== k) return
         if (a.answer === 'bad') bad++
         if (a.answer === 'repair') rep++
       }))
@@ -364,7 +360,6 @@ export default function Analytics({ data, syncing }) {
 
   return (
     <div className="fade">
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t)' }}>Analytics</h1>
@@ -373,7 +368,6 @@ export default function Analytics({ data, syncing }) {
         {syncing && <span className="spin" style={{ fontSize: 14, color: 'var(--t3)' }}>↻</span>}
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
         {TABS.map(t => (
           <button key={t.k} onClick={() => setTab(t.k)}
@@ -386,15 +380,13 @@ export default function Analytics({ data, syncing }) {
       {/* ── OVERVIEW ── */}
       {tab === 'overview' && (
         <>
-          {/* Stat cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }} className="g4">
             <StatCard label="Total Inspeksi" value={tInspeksi} color="var(--p)" />
-            <StatCard label="Good" value={tGood} color="var(--ok)" sub={`${Math.round(tGood / tAll * 100)}%`} />
-            <StatCard label="Order Part" value={tBad} color="var(--err)" sub={`${Math.round(tBad / tAll * 100)}%`} />
-            <StatCard label="Repair" value={tRep} color="var(--wn)" sub={`${Math.round(tRep / tAll * 100)}%`} />
+            <StatCard label="Good"       value={tGood} color="var(--ok)"  sub={`${Math.round(tGood / tAll * 100)}%`} />
+            <StatCard label="Order Part" value={tBad}  color="var(--err)" sub={`${Math.round(tBad  / tAll * 100)}%`} />
+            <StatCard label="Repair"     value={tRep}  color="var(--wn)"  sub={`${Math.round(tRep  / tAll * 100)}%`} />
           </div>
 
-          {/* Donut + kategori */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }} className="g2c">
             <Section title="Status keseluruhan">
               <ResponsiveContainer width="100%" height={200}>
@@ -422,7 +414,6 @@ export default function Analytics({ data, syncing }) {
             </Section>
           </div>
 
-          {/* Top 5 kerusakan terbanyak */}
           <Section title="🏆 Top 5 komponen sering rusak">
             <TopDamage inspections={inspections} questions={questions} />
           </Section>
@@ -454,12 +445,13 @@ export default function Analytics({ data, syncing }) {
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
                 data={units.map(u => {
-                  const ins = inspections.filter(i => i.unit_id === u._id)
+                  // FIX #2c: i.unit_id adalah integer, u.id juga integer
+                  const ins = inspections.filter(i => i.unit_id === u.id)
                   return {
                     name: u.nomor_unit,
                     'Order Part': ins.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'bad').length, 0),
-                    Repair: ins.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0),
-                    Inspeksi: ins.length,
+                    Repair:       ins.reduce((s, i) => s + (i.answers || []).filter(a => a.answer === 'repair').length, 0),
+                    Inspeksi:     ins.length,
                   }
                 })}
                 margin={{ top: 5, right: 5, bottom: 5, left: -20 }}
@@ -470,8 +462,8 @@ export default function Analytics({ data, syncing }) {
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="Order Part" fill="#dc2626" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="Repair" fill="#d97706" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="Inspeksi" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Repair"     fill="#d97706" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Inspeksi"   fill="#f59e0b" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Section>

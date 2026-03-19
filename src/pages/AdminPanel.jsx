@@ -475,10 +475,10 @@ function SchedulesTab({ units, recurring, refetch }) {
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
               {/* toggle dan remove pakai s.id (integer), bukan s._id */}
-              <button className="btn-g btn-sm" onClick={() => toggle(s._id, !s.aktif)}>
+              <button className="btn-g btn-sm" onClick={() => toggle(s.id, !s.aktif)}>
                 {s.aktif ? 'Nonaktifkan' : 'Aktifkan'}
               </button>
-              <button className="btn-err btn-sm" onClick={() => remove(s._id)}>Hapus</button>
+              <button className="btn-err btn-sm" onClick={() => remove(s.id)}>Hapus</button>
             </div>
           </div>
         ))}

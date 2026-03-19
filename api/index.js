@@ -527,8 +527,39 @@ export default async function handler(req, res) {
             const builtAnswers = await Promise.all(answers.map(async a => {
                 const q = qMap[parseInt(a.question_id)] || {}
                 const ans = { id: await nextId('answer'), question_id: parseInt(a.question_id), question_kategori: q.kategori, question_pertanyaan: q.pertanyaan, answer: a.answer }
-                if (a.answer === 'bad' && a.part_order) ans.part_order = { id: await nextId('partorder'), part_name: a.part_order.part_name, part_number: a.part_order.part_number || null, quantity: parseInt(a.part_order.quantity) || 1, keterangan: a.part_order.keterangan || null, foto_url: a.part_order.foto_url || null }
-                if (a.answer === 'repair' && a.repair) ans.repair = { id: await nextId('repair'), keterangan: a.repair.keterangan || null, foto_url: a.repair.foto_url || null }
+                if (a.answer === 'bad' && a.part_order) {
+                    const autoApprove = !!a.part_order.auto_approve
+                    ans.part_order = {
+                        id: await nextId('partorder'),
+                        part_name: a.part_order.part_name,
+                        part_number: a.part_order.part_number || null,
+                        quantity: parseInt(a.part_order.quantity) || 1,
+                        keterangan: a.part_order.keterangan || null,
+                        foto_url: a.part_order.foto_url || null,
+                        status: autoApprove ? 'approved' : 'pending',
+                        approved_by: autoApprove ? 0 : null,
+                        approved_at: autoApprove ? new Date() : null,
+                        work_status: a.part_order.work_status || 'belum_dikerjakan',
+                    }
+                }
+                if (a.answer === 'repair' && a.repair) {
+                    ans.repair = { id: await nextId('repair'), keterangan: a.repair.keterangan || null, foto_url: a.repair.foto_url || null, work_status: a.repair.work_status || 'belum_dikerjakan' }
+                    // Repair bisa juga punya part_order jika butuh order barang
+                    if (a.repair.needs_part && a.repair.part_order) {
+                        const autoApprove = !!a.repair.part_order.auto_approve
+                        ans.part_order = {
+                            id: await nextId('partorder'),
+                            part_name: a.repair.part_order.part_name,
+                            part_number: a.repair.part_order.part_number || null,
+                            quantity: parseInt(a.repair.part_order.quantity) || 1,
+                            keterangan: a.repair.part_order.keterangan || null,
+                            foto_url: a.repair.part_order.foto_url || null,
+                            status: autoApprove ? 'approved' : 'pending',
+                            approved_by: autoApprove ? 0 : null,
+                            approved_at: autoApprove ? new Date() : null,
+                        }
+                    }
+                }
                 return ans
             }))
             const inspection = await Inspection.create({
@@ -607,9 +638,13 @@ export default async function handler(req, res) {
         if (meth === 'GET') {
             const { search, low_stock } = req.query
             let filter = {}
-            if (search) filter.$text = { $search: search }
+            if (search) {
+                // Regex case-insensitive: bisa cari partial (misal '7867' cocok '78675765001')
+                const re = { $regex: search.replace(/[.*+?^${}()|[\]\\/]/g, '\\\$&'), $options: 'i' }
+                filter.$or = [ { part_number: re }, { material_description: re }, { location_storage: re } ]
+            }
             const stocks = await Stock.find(filter).select('-stock_logs').sort({ part_number: 1 }).lean()
-            const result = low_stock === 'true' ? stocks.filter(s => s.jumlah_stock <= s.minimum_stock) : stocks
+            const result = low_stock === 'true' ? stocks.filter(s => s.minimum_stock > 0 && s.jumlah_stock <= s.minimum_stock) : stocks
             return res.json(result)
         }
         if (meth === 'POST') {
@@ -624,6 +659,16 @@ export default async function handler(req, res) {
                 throw e
             }
         }
+    }
+
+    // Endpoint update massal minimum_stock semua item sekaligus
+    if (url === '/api/stock/set-minimum' && meth === 'PATCH') {
+        if (!requireRole(req, res, ['warehouse', 'admin'])) return
+        const { minimum_stock } = req.body
+        const val = parseInt(minimum_stock)
+        if (isNaN(val) || val < 0) return res.status(400).json({ error: 'minimum_stock tidak valid' })
+        const r = await Stock.updateMany({ minimum_stock: { $lt: val } }, { $set: { minimum_stock: val } })
+        return res.json({ success: true, updated: r.modifiedCount, message: `${r.modifiedCount} item diupdate ke minimum_stock = ${val}` })
     }
 
     const stockIdMatch = url.match(/^\/api\/stock\/(\d+)$/)

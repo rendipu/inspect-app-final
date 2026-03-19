@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
 import MultiUserInput from '../components/MultiUserInput'
+import FotoUpload from '../components/FotoUpload'
 
-const TODAY = new Date().toISOString().split('T')[0]
-const ANS_COLOR = { good: 'var(--ok)', bad: 'var(--err)', repair: 'var(--wn)' }
+const ANS_COLOR   = { good: 'var(--ok)', bad: 'var(--err)', repair: 'var(--wn)' }
+const WORK_STATUS = [
+  { v: 'belum_dikerjakan', l: '⏺ Belum Dikerjakan', c: 'var(--err)' },
+  { v: 'sudah_selesai',    l: '✓ Sudah Dikerjakan',  c: 'var(--ok)'  },
+]
 const CAT_BG = {
   Engine: 'var(--infbg)',
   Hydraulic: 'var(--wnbg)',
@@ -13,36 +17,51 @@ const CAT_BG = {
   Safety: 'var(--errbg)',
 }
 
+// FIX TIMEZONE: pakai tanggal LOKAL bukan UTC
+// new Date().toISOString() selalu UTC → jam 00:00-06:59 WIB masih "kemarin" UTC
+// sehingga inspeksi kemarin malam terdeteksi sebagai "hari ini" atau sebaliknya
+function getLocalDateStr(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function isSameLocalDay(isoDateStr) {
+  return getLocalDateStr(new Date(isoDateStr)) === getLocalDateStr()
+}
+
 export default function InspectionForm({ user, data, selUnit, setPage, refetch }) {
   const { units, users, inspections } = data
   const mechs = users.filter(u => u.role === 'mekanik')
-  const gls = users.filter(u => u.role === 'group_leader')
+  const gls   = users.filter(u => u.role === 'group_leader')
+
+  const TODAY = useMemo(() => getLocalDateStr(), [])
 
   const currentUser = users.find(u => u.id === user.id)
 
-  const [unitId, setUnitId] = useState(selUnit ? String(selUnit.id) : '')
-  const [hm, setHm] = useState('')
-  const [hmError, setHmError] = useState('')
-  const [selMechs, setSelMechs] = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
-  const [start, setStart] = useState('')
-  const [finish, setFinish] = useState('')
-  const [glId, setGlId] = useState('')
-  const [ans, setAns] = useState({})
+  const [unitId,    setUnitId]    = useState(selUnit ? String(selUnit._id) : '')
+  const [hm,        setHm]        = useState('')
+  const [hmError,   setHmError]   = useState('')
+  const [selMechs,  setSelMechs]  = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
+  const [start,     setStart]     = useState('')
+  const [finish,    setFinish]    = useState('')
+  const [glId,      setGlId]      = useState('')
+  const [ans,       setAns]       = useState({})
   const [questions, setQuestions] = useState([])
   const [submitted, setSubmitted] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [saving,    setSaving]    = useState(false)
+
+  // stockInfo: { [qid]: { found, jumlah, satuan, part_number, minimum } | { found: false } }
+  const [stockInfo, setStockInfo] = useState({})
+  const stockTimers = useRef({})
 
   const selectedUnit = units.find(u => u._id === unitId)
 
-
-  // Cek apakah unit sudah diinspeksi hari ini — dari data lokal
+  // FIX: isSameLocalDay pakai tanggal lokal — tidak salah di timezone WIB
   const todayInspection = unitId
-    ? inspections.find(i => {
-      const tgl = new Date(i.tanggal).toISOString().split('T')[0]
-      return i.unit_id === parseInt(unitId) && tgl === TODAY
-    })
+    ? inspections.find(i => i.unit_id === parseInt(unitId) && isSameLocalDay(i.tanggal))
     : null
-
   const alreadyDone = !!todayInspection
 
   // Load pertanyaan saat unit dipilih
@@ -50,34 +69,28 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
     if (!unitId || alreadyDone) { setQuestions([]); return }
     const unit = units.find(u => u._id === unitId)
     if (!unit) return
+    let cancelled = false
     api.getQuestions({ unit_tipe: unit.tipe, brand: unit.brand })
-      .then(setQuestions)
-      .catch(() => setQuestions([]))
-  }, [unitId, units])
+      .then(res => { if (!cancelled) setQuestions(res) })
+      .catch(() => { if (!cancelled) setQuestions([]) })
+    return () => { cancelled = true }
+  }, [unitId, units, alreadyDone])
 
-  // Set default HM dari unit yang dipilih
+  // Reset saat unit berubah
   useEffect(() => {
-    if (selectedUnit) {
-      setHm(selectedUnit.hm.toString())
-      setHmError('')
-    } else {
-      setHm('')
-      setHmError('')
-    }
+    if (selectedUnit) { setHm(selectedUnit.hm.toString()); setHmError('') }
+    else { setHm(''); setHmError('') }
     setAns({})
+    setStockInfo({})
   }, [unitId])
 
   const handleHmChange = (val) => {
     setHm(val)
     if (!selectedUnit) return
-    const newHm = parseFloat(val)
-    if (isNaN(newHm)) {
-      setHmError('Nilai HM tidak valid')
-    } else if (newHm < selectedUnit.hm) {
-      setHmError(`HM tidak boleh kurang dari HM saat ini (${selectedUnit.hm.toLocaleString()} jam)`)
-    } else {
-      setHmError('')
-    }
+    const n = parseFloat(val)
+    if (isNaN(n))             setHmError('Nilai HM tidak valid')
+    else if (n < selectedUnit.hm) setHmError(`HM tidak boleh kurang dari HM saat ini (${selectedUnit.hm.toLocaleString()} jam)`)
+    else                      setHmError('')
   }
 
   const grouped = questions.reduce((acc, q) => {
@@ -86,39 +99,101 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
     return acc
   }, {})
 
-  const setA = (qid, key, val) =>
-    setAns(prev => ({ ...prev, [qid]: { ...prev[qid], [key]: val } }))
+  const setA = useCallback((qid, key, val) =>
+    setAns(prev => ({ ...prev, [qid]: { ...prev[qid], [key]: val } })), [])
+
+  // Cek stok saat part_number diketik — debounce 600ms, exact match by part_number
+  const checkStock = useCallback((qid, partNumber) => {
+    clearTimeout(stockTimers.current[qid])
+    const pn = partNumber?.trim()
+    if (!pn) {
+      setStockInfo(prev => { const n = { ...prev }; delete n[qid]; return n })
+      return
+    }
+    stockTimers.current[qid] = setTimeout(async () => {
+      try {
+        const res   = await api.getStocks({ search: pn })
+        const found = res.find(s => s.part_number.toLowerCase() === pn.toLowerCase())
+        setStockInfo(prev => ({
+          ...prev,
+          [qid]: found
+            ? { found: true, jumlah: found.jumlah_stock, satuan: found.satuan, minimum: found.minimum_stock }
+            : { found: false },
+        }))
+      } catch {
+        setStockInfo(prev => { const n = { ...prev }; delete n[qid]; return n })
+      }
+    }, 600)
+  }, [])
 
   const handleSubmit = async () => {
     if (!unitId || !hm || selMechs.length === 0 || !start || !finish || !glId) {
       alert('Lengkapi semua data header!'); return
     }
-    if (hmError) {
-      alert(hmError); return
-    }
+    if (hmError) { alert(hmError); return }
     if (questions.length > 0 && !questions.every(q => ans[q.id]?.answer)) {
       alert('Semua pertanyaan harus dijawab!'); return
     }
+    for (const q of questions) {
+      const a = ans[q.id]
+      if (a?.answer === 'bad') {
+        if (!a.part_name?.trim()) { alert(`Pertanyaan "${q.pertanyaan}": Part Name wajib diisi!`); return }
+        if (!a.qty || parseInt(a.qty) < 1) { alert(`Pertanyaan "${q.pertanyaan}": Quantity wajib diisi (min. 1)!`); return }
+      }
+      if (a?.answer === 'repair' && a.needs_part) {
+        if (!a.rep_part_name?.trim()) { alert(`Pertanyaan "${q.pertanyaan}": Part Name untuk order wajib diisi!`); return }
+        if (!a.rep_qty || parseInt(a.rep_qty) < 1) { alert(`Pertanyaan "${q.pertanyaan}": Quantity order wajib diisi (min. 1)!`); return }
+      }
+    }
 
     const answers = questions.map(q => {
-      const a = ans[q.id]
+      const a    = ans[q.id]
       const item = { question_id: q.id, answer: a.answer }
-      if (a.answer === 'bad') item.part_order = { part_name: a.part_name || '', part_number: a.part_number || '', quantity: parseInt(a.qty) || 1, keterangan: a.ket || '', foto_url: null }
-      if (a.answer === 'repair') item.repair = { keterangan: a.rep_ket || '', foto_url: null }
+      if (a.answer === 'bad') {
+        const si = stockInfo[q.id]
+        // auto_approve: true jika part_number ada di stok DAN stok > 0
+        const autoApprove = !!(si?.found && si.jumlah > 0 && a.part_number?.trim())
+        item.part_order = {
+          part_name:    a.part_name   || '',
+          part_number:  a.part_number || '',
+          quantity:     parseInt(a.qty) || 1,
+          keterangan:   a.ket         || '',
+          foto_url:     a.foto_url    || null,
+          auto_approve: autoApprove,
+          work_status:  a.work_status || 'belum_dikerjakan',
+        }
+      }
+      if (a.answer === 'repair') {
+        const needsPart = !!a.needs_part
+        item.repair = {
+          keterangan:  a.rep_ket || '',
+          foto_url:    a.foto_url || null,
+          work_status: a.work_status || 'belum_dikerjakan',
+          needs_part:  needsPart,
+          part_order: needsPart ? {
+            part_name:    a.rep_part_name   || '',
+            part_number:  a.rep_part_number || '',
+            quantity:     parseInt(a.rep_qty) || 1,
+            keterangan:   a.rep_part_ket    || '',
+            foto_url:     a.rep_part_foto   || null,
+            auto_approve: !!(stockInfo[q.id]?.found && stockInfo[q.id]?.jumlah > 0 && a.rep_part_number?.trim()),
+          } : null,
+        }
+      }
       return item
     })
 
     setSaving(true)
     try {
       await api.createInspection({
-        unit_id: parseInt(unitId),
-        hour_meter: parseFloat(hm),
-        jam_start: start,
-        jam_finish: finish,
+        unit_id:         parseInt(unitId),
+        hour_meter:      parseFloat(hm),
+        jam_start:       start,
+        jam_finish:      finish,
         group_leader_id: parseInt(glId),
-        mekanik_ids: selMechs.map(m => m.id),
+        mekanik_ids:     selMechs.map(m => m.id),
         answers,
-        tanggal: TODAY,
+        tanggal:         TODAY,
       })
       await refetch()
       setSubmitted(true)
@@ -129,7 +204,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
     }
   }
 
-  // ── Sukses ──────────────────────────────────────────────────────────
+  // ── Sukses ───────────────────────────────────────────────────────────
   if (submitted) return (
     <div className="fade" style={{ textAlign: 'center', paddingTop: 60 }}>
       <div style={{ width: 80, height: 80, background: 'var(--okbg)', border: '2px solid var(--okbd)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 16px' }}>✓</div>
@@ -139,10 +214,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
         <button className="btn-g" onClick={() => setPage('dashboard')}>← Dashboard</button>
         <button className="btn-y" onClick={() => {
           setSubmitted(false); setAns({}); setUnitId('')
-          setHm(''); setStart(''); setFinish(''); setGlId('')
-        }}>
-          Inspeksi Baru
-        </button>
+          setHm(''); setStart(''); setFinish(''); setGlId(''); setStockInfo({})
+        }}>Inspeksi Baru</button>
       </div>
     </div>
   )
@@ -161,29 +234,24 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
 
-          {/* ── Pilih Unit ── */}
           <div style={{ gridColumn: '1 / -1' }}>
             <label className="lbl">Unit *</label>
             <select
               value={unitId}
-              onChange={e => { setUnitId(e.target.value); setAns({}) }}
+              onChange={e => { setUnitId(e.target.value); setAns({}); setStockInfo({}) }}
               style={{ ...IS, borderColor: alreadyDone ? 'var(--err)' : undefined }}
             >
               <option value="">-- Pilih Unit --</option>
               {units.map(u => {
-                const ins = inspections.find(i => {
-                  const tgl = new Date(i.tanggal).toISOString().split('T')[0]
-                  return i.unit_id === u._id && tgl === TODAY
-                })
+                const done = inspections.find(i => i.unit_id === u.id && isSameLocalDay(i.tanggal))
                 return (
                   <option key={u._id} value={u._id}>
-                    {u.nomor_unit} — {u.brand} {u.tipe}{ins ? ' ✓ (sudah diinspeksi)' : ''}
+                    {u.nomor_unit} — {u.brand} {u.tipe}{done ? ' ✓ (sudah diinspeksi)' : ''}
                   </option>
                 )
               })}
             </select>
 
-            {/* Info unit normal */}
             {selectedUnit && !alreadyDone && (
               <div style={{ marginTop: 6, fontSize: 11, color: 'var(--t3)' }}>
                 Brand: <strong style={{ color: 'var(--t2)' }}>{selectedUnit.brand}</strong> ·
@@ -192,10 +260,9 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
               </div>
             )}
 
-            {/* ── WARNING UNIT SUDAH DIINSPEKSI — muncul langsung saat pilih unit ── */}
             {alreadyDone && selectedUnit && (() => {
-              const mechs = (todayInspection.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-              const gl = todayInspection.group_leader?.nama || '-'
+              const mechNames = (todayInspection.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
+              const gl = todayInspection.group_leader_nama || '-'
               return (
                 <div style={{ marginTop: 8, background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -205,18 +272,10 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                         {selectedUnit.nomor_unit} sudah diinspeksi hari ini
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                          ⏰ Waktu: <strong>{todayInspection.jam_start} – {todayInspection.jam_finish}</strong>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                          👤 Mekanik: <strong>{mechs || '-'}</strong>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                          👨‍💼 GL: <strong>{gl}</strong>
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                          📊 HM: <strong className="mono">{todayInspection.hour_meter?.toLocaleString()} jam</strong>
-                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>⏰ Waktu: <strong>{todayInspection.jam_start} – {todayInspection.jam_finish}</strong></div>
+                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>👤 Mekanik: <strong>{mechNames || '-'}</strong></div>
+                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>👨‍💼 GL: <strong>{gl}</strong></div>
+                        <div style={{ fontSize: 12, color: 'var(--t2)' }}>📊 HM: <strong className="mono">{todayInspection.hour_meter?.toLocaleString()} jam</strong></div>
                       </div>
                       <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t3)', background: 'var(--sf)', border: '1px solid var(--errbd)', borderRadius: 6, padding: '5px 10px' }}>
                         Setiap unit hanya boleh diinspeksi 1 kali per hari. Silakan pilih unit lain.
@@ -228,50 +287,35 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
             })()}
           </div>
 
-          {/* Input berikut hanya tampil jika unit belum diinspeksi */}
           {!alreadyDone && unitId && (
             <>
-              {/* Hour Meter */}
               <div>
                 <label className="lbl">Hour Meter *</label>
-                <input
-                  type="number"
-                  value={hm}
-                  onChange={e => handleHmChange(e.target.value)}
+                <input type="number" value={hm} onChange={e => handleHmChange(e.target.value)}
                   placeholder={selectedUnit ? `Min. ${selectedUnit.hm}` : 'e.g. 4523'}
-                  min={selectedUnit?.hm || 0}
-                  step="0.1"
-                  style={{ ...IS, borderColor: hmError ? 'var(--err)' : undefined }}
-                />
-                {/* ── VALIDASI HM — muncul langsung saat input ── */}
+                  min={selectedUnit?.hm || 0} step="0.1"
+                  style={{ ...IS, borderColor: hmError ? 'var(--err)' : undefined }} />
                 {hmError ? (
-                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--err)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span>⚠</span> {hmError}
-                  </div>
+                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--err)', fontWeight: 600 }}>⚠ {hmError}</div>
                 ) : hm && selectedUnit && parseFloat(hm) > selectedUnit.hm ? (
-                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--ok)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span>✓</span> +{(parseFloat(hm) - selectedUnit.hm).toLocaleString()} jam dari HM sebelumnya
+                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--ok)', fontWeight: 600 }}>
+                    ✓ +{(parseFloat(hm) - selectedUnit.hm).toLocaleString()} jam dari HM sebelumnya
                   </div>
                 ) : hm && selectedUnit && parseFloat(hm) === selectedUnit.hm ? (
-                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--t3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span>ℹ</span> Sama dengan HM saat ini
-                  </div>
+                  <div style={{ marginTop: 5, fontSize: 11, color: 'var(--t3)' }}>ℹ Sama dengan HM saat ini</div>
                 ) : null}
               </div>
 
-              {/* Jam Start */}
               <div>
                 <label className="lbl">Jam Start *</label>
                 <input type="time" value={start} onChange={e => setStart(e.target.value)} style={IS} />
               </div>
 
-              {/* Jam Finish */}
               <div>
                 <label className="lbl">Jam Finish *</label>
                 <input type="time" value={finish} onChange={e => setFinish(e.target.value)} style={IS} />
               </div>
 
-              {/* Group Leader */}
               <div>
                 <label className="lbl">Group Leader *</label>
                 <select value={glId} onChange={e => setGlId(e.target.value)} style={IS}>
@@ -280,23 +324,15 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                 </select>
               </div>
 
-              {/* Mekanik */}
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="lbl">Mekanik Pelaksana *</label>
-                <MultiUserInput
-                  users={mechs}
-                  selected={selMechs}
-                  onChange={setSelMechs}
-                  placeholder="Ketik nama mekanik..."
-                />
+                <MultiUserInput users={mechs} selected={selMechs} onChange={setSelMechs} placeholder="Ketik nama mekanik..." />
               </div>
             </>
           )}
-
         </div>
       </div>
 
-      {/* ── INFO PERTANYAAN ── */}
       {unitId && !alreadyDone && questions.length === 0 && (
         <div className="card" style={{ textAlign: 'center', color: 'var(--t3)', padding: 32, marginBottom: 14 }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
@@ -309,7 +345,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
         </div>
       )}
 
-      {/* ── PERTANYAAN PER KATEGORI ── */}
+      {/* ── PERTANYAAN ── */}
       {!alreadyDone && Object.entries(grouped).map(([kat, qs]) => (
         <div key={kat} className="card" style={{ marginBottom: 14 }}>
           <div style={{ background: CAT_BG[kat] || 'var(--bd2)', borderRadius: 6, padding: '5px 12px', marginBottom: 14, display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'var(--t2)', border: '1px solid var(--bd)' }}>
@@ -317,7 +353,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {qs.map(q => {
-              const a = ans[q.id] || {}
+              const a  = ans[q.id] || {}
+              const si = stockInfo[q.id]
               return (
                 <div key={q.id} style={{ background: 'var(--bd2)', borderRadius: 8, padding: 14, border: a.answer ? `1.5px solid ${ANS_COLOR[a.answer]}26` : '1.5px solid transparent', transition: 'border-color .2s' }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t)', marginBottom: 4 }}>
@@ -328,6 +365,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                       Khusus: {[...(Array.isArray(q.brand) ? q.brand : (q.brand ? [q.brand] : [])), ...(Array.isArray(q.unit_tipe) ? q.unit_tipe : (q.unit_tipe ? [q.unit_tipe] : []))].join(', ')}
                     </div>
                   ) : null}
+
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: (a.answer === 'bad' || a.answer === 'repair') ? 12 : 0 }}>
                     {['good', 'bad', 'repair'].map(opt => {
                       const c = ANS_COLOR[opt]; const sel = a.answer === opt
@@ -339,27 +377,178 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                       )
                     })}
                   </div>
+
+                  {/* BAD */}
                   {a.answer === 'bad' && (
                     <div style={{ background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>⚠ Data Order Part</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
-                        <div><label className="lbl">Part Name *</label><input value={a.part_name || ''} onChange={e => setA(q.id, 'part_name', e.target.value)} placeholder="e.g. Air Filter" style={IS} /></div>
-                        <div><label className="lbl">Part Number</label><input value={a.part_number || ''} onChange={e => setA(q.id, 'part_number', e.target.value)} placeholder="e.g. AF-1234" style={IS} /></div>
-                        <div><label className="lbl">Quantity *</label><input type="number" value={a.qty || ''} onChange={e => setA(q.id, 'qty', e.target.value)} placeholder="1" style={IS} /></div>
-                        <div><label className="lbl">Keterangan</label><input value={a.ket || ''} onChange={e => setA(q.id, 'ket', e.target.value)} placeholder="Detail kondisi..." style={IS} /></div>
+                        <div>
+                          <label className="lbl">Part Name *</label>
+                          <input value={a.part_name || ''} onChange={e => setA(q.id, 'part_name', e.target.value)}
+                            placeholder="e.g. Air Filter"
+                            style={{ ...IS, borderColor: a.part_name === '' ? 'var(--err)' : undefined }} />
+                        </div>
+                        <div>
+                          <label className="lbl">Part Number</label>
+                          <input
+                            value={a.part_number || ''}
+                            onChange={e => {
+                              setA(q.id, 'part_number', e.target.value)
+                              checkStock(q.id, e.target.value)
+                            }}
+                            placeholder="e.g. AF-1234" style={IS} />
+                        </div>
+                        <div>
+                          <label className="lbl">Quantity *</label>
+                          <input type="number" value={a.qty ?? 1} onChange={e => setA(q.id, 'qty', e.target.value)} placeholder="1" min="1" style={IS} />
+                        </div>
+                        <div>
+                          <label className="lbl">Keterangan</label>
+                          <input value={a.ket || ''} onChange={e => setA(q.id, 'ket', e.target.value)} placeholder="Detail kondisi..." style={IS} />
+                        </div>
                       </div>
-                      <button style={{ marginTop: 10, background: 'transparent', border: '1.5px dashed var(--p)', color: 'var(--pd)', padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                        📷 Upload Foto
-                      </button>
+
+                      {/* CAUTION STOK — muncul setelah part_number diisi */}
+                      {si && a.part_number?.trim() && (
+                        si.found ? (
+                          <div style={{ marginTop: 10, background: si.jumlah > 0 ? 'var(--okbg)' : 'var(--wnbg)', border: `1.5px solid ${si.jumlah > 0 ? 'var(--okbd)' : 'var(--wnbd)'}`, borderRadius: 7, padding: '8px 12px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                            <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{si.jumlah > 0 ? '✅' : '⚠️'}</span>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: si.jumlah > 0 ? 'var(--ok)' : 'var(--wn)' }}>
+                                {si.jumlah > 0
+                                  ? `Tersedia di stock — ${si.jumlah} ${si.satuan}`
+                                  : `Stock habis — 0 ${si.satuan}`}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
+                                {si.jumlah > 0
+                                  ? 'Order akan di-approve otomatis tanpa perlu approval GL'
+                                  : 'Stok ada di database tapi kosong, order tetap perlu approval GL'}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 10, background: 'var(--bd2)', border: '1.5px solid var(--bd)', borderRadius: 7, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>📦</span>
+                            <div style={{ fontSize: 12, color: 'var(--t3)' }}>
+                              Part number tidak ditemukan di stock — order perlu approval GL
+                            </div>
+                          </div>
+                        )
+                      )}
+
+                      {/* Status Pengerjaan */}
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                          Status Pengerjaan
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {WORK_STATUS.map(ws => {
+                            const isSel = (a.work_status || 'belum_dikerjakan') === ws.v
+                            return (
+                              <button key={ws.v} type="button" onClick={() => setA(q.id, 'work_status', ws.v)}
+                                style={{ padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${ws.c}`, background: isSel ? ws.c : 'transparent', color: isSel ? '#fff' : ws.c, transition: 'all .15s' }}>
+                                {ws.l}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <FotoUpload value={a.foto_url || null} onChange={val => setA(q.id, 'foto_url', val)} label="📷 Upload Foto Kondisi" color="var(--err)" />
                     </div>
                   )}
+
+                  {/* REPAIR */}
                   {a.answer === 'repair' && (
                     <div style={{ background: 'var(--wnbg)', border: '1.5px solid var(--wnbd)', borderRadius: 8, padding: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--wn)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>🔧 Detail Perbaikan</div>
-                      <textarea value={a.rep_ket || ''} onChange={e => setA(q.id, 'rep_ket', e.target.value)} placeholder="Jelaskan perbaikan yang dilakukan..." rows={2} style={{ ...IS, resize: 'none' }} />
-                      <button style={{ marginTop: 8, background: 'transparent', border: '1.5px dashed var(--p)', color: 'var(--pd)', padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-                        📷 Upload Foto
-                      </button>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--wn)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>🔧 Detail Perbaikan</div>
+                      <textarea value={a.rep_ket || ''} onChange={e => setA(q.id, 'rep_ket', e.target.value)}
+                        placeholder="Jelaskan perbaikan yang dilakukan..." rows={2} style={{ ...IS, resize: 'none', marginBottom: 10 }} />
+
+                      {/* Status Pengerjaan */}
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                          Status Pengerjaan
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {WORK_STATUS.map(ws => {
+                            const isSel = (a.work_status || 'belum_dikerjakan') === ws.v
+                            return (
+                              <button key={ws.v} type="button" onClick={() => setA(q.id, 'work_status', ws.v)}
+                                style={{ padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: `1.5px solid ${ws.c}`, background: isSel ? ws.c : 'transparent', color: isSel ? '#fff' : ws.c, transition: 'all .15s' }}>
+                                {ws.l}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Toggle perlu order barang */}
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)', marginBottom: 6, display: 'block' }}>
+                          Perlu Order Barang?
+                        </label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {[{ v: false, l: 'Tidak' }, { v: true, l: 'Ya, perlu order' }].map(opt => (
+                            <button key={String(opt.v)} type="button"
+                              onClick={() => setA(q.id, 'needs_part', opt.v)}
+                              style={{ padding: '5px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', background: (a.needs_part === opt.v || (!opt.v && !a.needs_part)) ? 'var(--wn)' : 'transparent', color: (a.needs_part === opt.v || (!opt.v && !a.needs_part)) ? '#fff' : 'var(--wn)', borderColor: 'var(--wn)', transition: 'all .15s' }}>
+                              {opt.l}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Form order barang jika perlu */}
+                      {a.needs_part && (
+                        <div style={{ background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>⚠ Data Order Part</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
+                            <div>
+                              <label className="lbl">Part Name *</label>
+                              <input value={a.rep_part_name || ''} onChange={e => setA(q.id, 'rep_part_name', e.target.value)}
+                                placeholder="e.g. Air Filter" style={{ ...IS, borderColor: a.rep_part_name === '' ? 'var(--err)' : undefined }} />
+                            </div>
+                            <div>
+                              <label className="lbl">Part Number</label>
+                              <input value={a.rep_part_number || ''}
+                                onChange={e => { setA(q.id, 'rep_part_number', e.target.value); checkStock(q.id + '_rep', e.target.value) }}
+                                placeholder="e.g. AF-1234" style={IS} />
+                            </div>
+                            <div>
+                              <label className="lbl">Quantity *</label>
+                              <input type="number" value={a.rep_qty ?? 1} onChange={e => setA(q.id, 'rep_qty', e.target.value)} placeholder="1" min="1" style={IS} />
+                            </div>
+                            <div>
+                              <label className="lbl">Keterangan</label>
+                              <input value={a.rep_part_ket || ''} onChange={e => setA(q.id, 'rep_part_ket', e.target.value)} placeholder="Detail kebutuhan..." style={IS} />
+                            </div>
+                          </div>
+                          {/* Caution stok untuk repair order */}
+                          {stockInfo[q.id + '_rep'] && a.rep_part_number?.trim() && (
+                            stockInfo[q.id + '_rep'].found ? (
+                              <div style={{ marginTop: 8, background: stockInfo[q.id + '_rep'].jumlah > 0 ? 'var(--okbg)' : 'var(--wnbg)', border: `1.5px solid ${stockInfo[q.id + '_rep'].jumlah > 0 ? 'var(--okbd)' : 'var(--wnbd)'}`, borderRadius: 7, padding: '7px 10px', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                                <span style={{ fontSize: 15 }}>{stockInfo[q.id + '_rep'].jumlah > 0 ? '✅' : '⚠️'}</span>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: stockInfo[q.id + '_rep'].jumlah > 0 ? 'var(--ok)' : 'var(--wn)' }}>
+                                    {stockInfo[q.id + '_rep'].jumlah > 0 ? `Tersedia — ${stockInfo[q.id + '_rep'].jumlah} ${stockInfo[q.id + '_rep'].satuan}, order auto-approve` : `Stock habis, perlu approval GL`}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ marginTop: 8, background: 'var(--bd2)', border: '1.5px solid var(--bd)', borderRadius: 7, padding: '7px 10px', fontSize: 11, color: 'var(--t3)' }}>
+                                📦 Part tidak ditemukan di stock — perlu approval GL
+                              </div>
+                            )
+                          )}
+                          <div style={{ marginTop: 8 }}>
+                            <FotoUpload value={a.rep_part_foto || null} onChange={val => setA(q.id, 'rep_part_foto', val)} label="📷 Upload Foto Part" color="var(--err)" />
+                          </div>
+                        </div>
+                      )}
+
+                      <FotoUpload value={a.foto_url || null} onChange={val => setA(q.id, 'foto_url', val)} label="📷 Upload Foto Perbaikan" color="var(--wn)" />
                     </div>
                   )}
                 </div>
@@ -369,14 +558,9 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
         </div>
       ))}
 
-      {/* ── TOMBOL SIMPAN ── */}
       {!alreadyDone && questions.length > 0 && (
-        <button
-          className="btn-y"
-          onClick={handleSubmit}
-          disabled={saving || !!hmError}
-          style={{ width: '100%', padding: 13, fontSize: 14, letterSpacing: '.06em', marginBottom: 24, boxShadow: '0 2px 10px rgba(245,158,11,.28)', opacity: (saving || !!hmError) ? 0.5 : 1, cursor: hmError ? 'not-allowed' : 'pointer' }}
-        >
+        <button className="btn-y" onClick={handleSubmit} disabled={saving || !!hmError}
+          style={{ width: '100%', padding: 13, fontSize: 14, letterSpacing: '.06em', marginBottom: 24, boxShadow: '0 2px 10px rgba(245,158,11,.28)', opacity: (saving || !!hmError) ? 0.5 : 1, cursor: hmError ? 'not-allowed' : 'pointer' }}>
           {saving ? '⏳ Menyimpan...' : '💾 SIMPAN HASIL INSPEKSI'}
         </button>
       )}
