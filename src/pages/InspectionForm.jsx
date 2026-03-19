@@ -32,7 +32,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const selectedUnit = units.find(u => u.id === parseInt(unitId))
+  const selectedUnit = units.find(u => u._id === unitId)
+
 
   // Cek apakah unit sudah diinspeksi hari ini — dari data lokal
   const todayInspection = unitId
