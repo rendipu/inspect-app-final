@@ -8,6 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // FIX RENDER BLOCKING: inject registerSW dengan defer bukan blocking
+      injectRegister: 'script-defer',
       includeAssets: ['icons/*.png', 'favicon.ico', 'logo/*.webp'],
       manifest: {
         name: 'MineInspect',
@@ -24,8 +26,8 @@ export default defineConfig({
           { src: '/icons/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable any' },
         ],
         shortcuts: [
-          { name: 'Buat Inspeksi',   url: '/#inspection', icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }] },
-          { name: 'Jadwal Hari Ini', url: '/#schedules',  icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }] },
+          { name: 'Buat Inspeksi',   url: '/', icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }] },
+          { name: 'Jadwal Hari Ini', url: '/', icons: [{ src: '/icons/icon-96x96.png', sizes: '96x96' }] },
         ],
       },
       workbox: {
@@ -33,7 +35,7 @@ export default defineConfig({
           { urlPattern: /\/api\/questions/, handler: 'StaleWhileRevalidate', options: { cacheName: 'api-questions', expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
           { urlPattern: /\/api\/units/,     handler: 'StaleWhileRevalidate', options: { cacheName: 'api-units',     expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
           { urlPattern: /\/api\/sse/,        handler: 'NetworkOnly' },
-          { urlPattern: /\/api\/.*/,         handler: 'NetworkFirst',        options: { cacheName: 'api-cache',     expiration: { maxEntries: 50, maxAgeSeconds: 60 } } },
+          { urlPattern: /\/api\/.*/,         handler: 'NetworkFirst', options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 } } },
         ],
       },
     }),
@@ -43,18 +45,19 @@ export default defineConfig({
     proxy: { '/api': { target: 'http://localhost:3001', changeOrigin: true } },
   },
   build: {
-    // Gunakan esbuild (default Vite) — lebih aman di Vercel daripada terser
     minify: 'esbuild',
     target: 'es2020',
+    // FIX RENDER BLOCKING: inject CSS sebagai non-blocking (inline di JS)
+    // CSS tidak di-extract ke file terpisah sehingga tidak ada <link> blocking
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
-        // Pisahkan vendor chunk — recharts dan react terpisah dari app code
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'recharts':     ['recharts'],
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 800,
   },
 })

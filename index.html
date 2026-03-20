@@ -71,13 +71,7 @@
 </head>
 
 <body>
-  <div id="root">
-    <!-- FIX: h1 landmark untuk screen reader & Lighthouse sebelum JS load -->
-    <!-- Visually hidden tapi accessible — React akan replace saat hydrate -->
-    <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">
-      MineInspect — Sistem Inspeksi Alat Berat Tambang
-    </h1>
-  </div>
+  <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 
