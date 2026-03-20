@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mineinspect.vercel.app/sitemap.xml

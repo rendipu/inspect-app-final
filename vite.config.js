@@ -1,4 +1,3 @@
-// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -8,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'favicon.ico'],
+      includeAssets: ['icons/*.png', 'favicon.ico', 'logo/*.webp'],
       manifest: {
         name: 'MineInspect',
         short_name: 'MineInspect',
@@ -30,68 +29,40 @@ export default defineConfig({
       },
       workbox: {
         runtimeCaching: [
-          {
-            urlPattern: /\/api\/questions/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'api-questions',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 5 },
-            },
-          },
-          {
-            urlPattern: /\/api\/units/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'api-units',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 5 },
-            },
-          },
-          // SSE tidak boleh di-cache
-          { urlPattern: /\/api\/sse/, handler: 'NetworkOnly' },
-          // API lainnya network-first
-          {
-            urlPattern: /\/api\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 },
-            },
-          },
+          { urlPattern: /\/api\/questions/, handler: 'StaleWhileRevalidate', options: { cacheName: 'api-questions', expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
+          { urlPattern: /\/api\/units/,     handler: 'StaleWhileRevalidate', options: { cacheName: 'api-units',     expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
+          { urlPattern: /\/api\/sse/,        handler: 'NetworkOnly' },
+          { urlPattern: /\/api\/.*/,         handler: 'NetworkFirst',        options: { cacheName: 'api-cache',     expiration: { maxEntries: 50,  maxAgeSeconds: 60  } } },
         ],
       },
     }),
   ],
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+    proxy: { '/api': { target: 'http://localhost:3001', changeOrigin: true } },
   },
   build: {
-    // FIX PERFORMANCE: target modern browsers untuk bundle lebih kecil
     target: 'es2020',
-    // FIX PERFORMANCE: compress lebih agresif
+    // ✅ FIX: minify agresif, hapus console.log di production
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,   // hapus console.log di production
+        drop_console: true,
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
       },
     },
     rollupOptions: {
       output: {
-        // FIX PERFORMANCE: code splitting lebih granular
-        manualChunks: {
-          'react-core':  ['react', 'react-dom'],
-          'recharts':    ['recharts'],
+        // ✅ FIX: split chunk per halaman — lazy load bekerja optimal
+        manualChunks(id) {
+          if (id.includes('recharts') || id.includes('d3-')) return 'recharts'
+          if (id.includes('react-dom'))  return 'react-dom'
+          if (id.includes('react'))      return 'react'
+          if (id.includes('node_modules')) return 'vendor'
         },
       },
     },
-    // FIX PERFORMANCE: chunk size warning threshold
     chunkSizeWarningLimit: 600,
   },
 })

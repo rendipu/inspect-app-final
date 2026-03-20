@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
@@ -9,21 +9,35 @@ import BottomNav     from './components/BottomNav'
 import PwaBanner     from './components/PwaBanner'
 import LiveIndicator from './components/LiveIndicator'
 
-import LoginPage      from './pages/LoginPage'
-import Dashboard      from './pages/Dashboard'
-import InspectionForm from './pages/InspectionForm'
-import HistoryPage    from './pages/HistoryPage'
-import Analytics      from './pages/Analytics'
-import Approvals      from './pages/Approvals'
-import AdminPanel     from './pages/AdminPanel'
-import HourMeter      from './pages/HourMeter'
-import StockPage      from './pages/stockPage'
+// Eager — tampil pertama kali, harus instant
+import LoginPage from './pages/LoginPage'
+import Dashboard from './pages/Dashboard'
+
+// ✅ FIX: lazy load semua halaman berat
+// Menghemat ~135 KiB dari initial bundle (JS tidak digunakan)
+// recharts (Analytics) saja ~80 KiB — tidak perlu di-load saat login
+const InspectionForm = lazy(() => import('./pages/InspectionForm'))
+const HistoryPage    = lazy(() => import('./pages/HistoryPage'))
+const Analytics      = lazy(() => import('./pages/Analytics'))
+const Approvals      = lazy(() => import('./pages/Approvals'))
+const AdminPanel     = lazy(() => import('./pages/AdminPanel'))
+const HourMeter      = lazy(() => import('./pages/HourMeter'))
+const StockPage      = lazy(() => import('./pages/stockPage'))
+
+function PageLoader() {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48, color:'var(--t3)', gap:10, fontSize:13 }}>
+      <span className="spin" style={{ fontSize:20 }}>↻</span>
+      Memuat...
+    </div>
+  )
+}
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ width: 56, height: 56, background: 'var(--p)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, boxShadow: '0 4px 20px rgba(245,158,11,.3)' }}>⚙</div>
-      <div style={{ fontSize: 14, color: 'var(--t3)' }}>Memuat data...</div>
+    <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
+      <div style={{ width:56, height:56, background:'var(--p)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, boxShadow:'0 4px 20px rgba(245,158,11,.3)' }}>⚙</div>
+      <div style={{ fontSize:14, color:'var(--t3)' }}>Memuat data...</div>
     </div>
   )
 }
@@ -54,19 +68,16 @@ export default function App() {
     setPage('dashboard')
   }
 
-  // Scroll ke atas saat ganti halaman di mobile
   useEffect(() => {
     if (isMob) window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page, isMob])
 
-  // FIX #8: safeData di-memo agar tidak buat objek baru setiap render
   const safeData = useMemo(
-    () => data || { users: [], units: [], questions: [], schedules: [], inspections: [], recurring: [] },
+    () => data || { users:[], units:[], questions:[], schedules:[], inspections:[], recurring:[] },
     [data]
   )
 
-  // FIX: useMemo pageMap HARUS di sini — sebelum semua early return
-  // agar jumlah hooks konsisten setiap render (React Rules of Hooks)
+  // HARUS sebelum early return (Rules of Hooks)
   const pageMap = useMemo(() => ({
     dashboard:  <Dashboard      user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit} mutate={mutate} syncing={syncing} lastSync={lastSync} />,
     inspection: <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
@@ -82,24 +93,21 @@ export default function App() {
   if (!user) return <LoginPage onLogin={handleLogin} />
   if (loading && !data) return <LoadingScreen />
   if (error && !data) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: 20, textAlign: 'center' }}>
-      <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t)' }}>Gagal memuat data</div>
-      <div style={{ fontSize: 13, color: 'var(--t3)' }}>{error}</div>
-      <button className="btn-y" style={{ marginTop: 8 }} onClick={refetch}>Coba Lagi</button>
+    <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12, padding:20, textAlign:'center' }}>
+      <div style={{ fontSize:36 }}>⚠</div>
+      <div style={{ fontSize:16, fontWeight:700, color:'var(--t)' }}>Gagal memuat data</div>
+      <div style={{ fontSize:13, color:'var(--t3)' }}>{error}</div>
+      <button className="btn-y" style={{ marginTop:8 }} onClick={refetch}>Coba Lagi</button>
     </div>
   )
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Offline banner */}
+    <div style={{ background:'var(--bg)', minHeight:'100vh' }}>
       {!online && (
-        <div style={{ background: 'var(--err)', color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 12, fontWeight: 700 }}>
+        <div style={{ background:'var(--err)', color:'#fff', textAlign:'center', padding:'6px 16px', fontSize:12, fontWeight:700 }}>
           ⚠ Tidak ada koneksi — Mode Offline
         </div>
       )}
-
-      {/* PWA banner */}
       {showPwa && online && (
         <PwaBanner
           onInstall={() => { alert('Buka di Chrome/Safari → menu → "Add to Home Screen" untuk install PWA.'); setShowPwa(false) }}
@@ -107,31 +115,26 @@ export default function App() {
         />
       )}
 
-      {/* Mobile layout */}
       {isMob ? (
         <>
-          <TopBar
-            user={user}
-            page={page}
-            syncing={syncing}
-            lastSync={lastSync}
-            online={online}
-            onLogout={handleLogout}
-          />
-          <main className="main-with-bottom-nav" style={{ padding: '14px 14px 0' }}>
-            {pageMap[page] ?? pageMap.dashboard}
+          <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} />
+          <main className="main-with-bottom-nav" style={{ padding:'14px 14px 0' }}>
+            <Suspense fallback={<PageLoader />}>
+              {pageMap[page] ?? pageMap.dashboard}
+            </Suspense>
           </main>
           <BottomNav user={user} page={page} setPage={setPage} />
         </>
       ) : (
-        /* Desktop layout */
-        <div style={{ display: 'flex' }}>
+        <div style={{ display:'flex' }}>
           <Sidebar user={user} page={page} setPage={setPage} onLogout={handleLogout} isMob={false} />
-          <main style={{ flex: 1, minWidth: 0, padding: '24px 28px' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <main style={{ flex:1, minWidth:0, padding:'24px 28px' }}>
+            <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
               <LiveIndicator syncing={syncing} lastSync={lastSync} />
             </div>
-            {pageMap[page] ?? pageMap.dashboard}
+            <Suspense fallback={<PageLoader />}>
+              {pageMap[page] ?? pageMap.dashboard}
+            </Suspense>
           </main>
         </div>
       )}

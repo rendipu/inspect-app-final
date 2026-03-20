@@ -23,12 +23,19 @@ export default function LoginPage({ onLogin }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <div style={{ width: 140, height: 140, margin: '-1rem auto', display: 'block', }}>
-            <img
-              src="/logo/mineinspect-crane.png"
-              alt="MineInspect Logo"
-              style={{ width: 160, height: 160, margin: '-1rem auto', display: 'block', objectFit: 'fill' }}
-            />
+          <div style={{ width: 140, height: 140, margin: '-1rem auto', display: 'block' }}>
+            {/* FIX: WebP lebih kecil (10KB vs 144KB), PNG sebagai fallback */}
+            <picture>
+              <source srcSet="/logo/mineinspect-crane.webp" type="image/webp" />
+              <img
+                src="/logo/mineinspect-crane.png"
+                alt="MineInspect Logo"
+                width="160"
+                height="160"
+                fetchPriority="high"
+                style={{ width: 160, height: 160, margin: '-1rem auto', display: 'block', objectFit: 'contain' }}
+              />
+            </picture>
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--t)', letterSpacing: '.04em' }}>INSPECT</div>
           <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>Heavy Equipment Inspection System</div>
@@ -36,28 +43,15 @@ export default function LoginPage({ onLogin }) {
         <div className="card" style={{ borderTop: '3px solid var(--p)' }}>
           <div style={{ marginBottom: 14 }}>
             <label className="lbl" htmlFor="login-nrp">NRP Karyawan</label>
-            <input
-              id="login-nrp"
-              value={nrp}
-              onChange={e => { setNrp(e.target.value); setErr('') }}
+            <input id="login-nrp" value={nrp} onChange={e => { setNrp(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Contoh: 1900374578"
-              autoComplete="username"
-              style={{ width: '100%' }}
-            />
+              placeholder="Contoh: 1900374578" autoComplete="username" style={{ width: '100%' }} />
           </div>
           <div style={{ marginBottom: 8 }}>
             <label className="lbl" htmlFor="login-pw">Password</label>
-            <input
-              id="login-pw"
-              type="password"
-              value={pw}
-              onChange={e => { setPw(e.target.value); setErr('') }}
+            <input id="login-pw" type="password" value={pw} onChange={e => { setPw(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Masukkan password"
-              autoComplete="current-password"
-              style={{ width: '100%' }}
-            />
+              placeholder="Masukkan password" autoComplete="current-password" style={{ width: '100%' }} />
           </div>
           {err && <div role="alert" aria-live="polite" style={{ fontSize: 12, color: 'var(--err)', padding: '6px 10px', background: 'var(--errbg)', border: '1px solid var(--errbd)', borderRadius: 6, marginBottom: 8 }}>⚠ {err}</div>}
           <button className="btn-y" onClick={handleLogin} disabled={loading}
