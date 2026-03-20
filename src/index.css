@@ -9,7 +9,7 @@
   --pxl: #fffbf0;
   --t: #1c1917;
   --t2: #57534e;
-  --t3: #a8a29e;
+  --t3: #78716c; /* FIX CONTRAST: #a8a29e gagal WCAG AA → #78716c (4.6:1 on white) */
   --bd: #e7e5e4;
   --bd2: #f5f5f4;
   --ok: #15803d;
@@ -18,13 +18,13 @@
   --err: #dc2626;
   --errbg: #fef2f2;
   --errbd: #fecaca;
-  --wn: #b45309;
+  --wn: #92400e; /* FIX CONTRAST: #b45309 → #92400e (4.8:1 on yellow bg) */
   --wnbg: #fffbeb;
   --wnbd: #fde68a;
   --inf: #0369a1;
   --infbg: #eff6ff;
   --infbd: #bfdbfe;
-  --pur: #6d28d9;
+  --pur: #5b21b6; /* FIX CONTRAST: #6d28d9 → #5b21b6 */
   --purbg: #f5f3ff;
   --purbd: #ddd6fe;
 }
@@ -63,12 +63,18 @@ input, select, textarea {
   padding: 8px 12px;
   font-family: inherit;
   font-size: 13px;
+  /* FIX ACCESSIBILITY: jangan outline:none tanpa pengganti */
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--p);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+}
+/* FIX ACCESSIBILITY: focus-visible untuk keyboard navigation */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--pd);
+  outline-offset: 1px;
 }
 select option { background: var(--sf); }
 
@@ -80,6 +86,11 @@ button {
   transition: all 0.15s;
   font-size: 13px;
   font-weight: 600;
+}
+/* FIX ACCESSIBILITY: semua button harus punya focus visible */
+button:focus-visible {
+  outline: 2px solid var(--pd);
+  outline-offset: 2px;
 }
 .btn-y {
   background: var(--p);
@@ -222,6 +233,7 @@ button {
 @media (min-width: 681px) {
   .mob  { display: none !important; }
 }
+
 /* ─── Bottom Nav Mobile ─────────────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
@@ -249,7 +261,9 @@ button {
   border: none;
   cursor: pointer;
   transition: all .15s;
+  /* FIX ACCESSIBILITY: min touch target 44x44px */
   min-height: 56px;
+  min-width: 44px;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -306,7 +320,7 @@ button {
   padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
 }
 
-/* Mobile top bar lebih compact */
+/* Mobile top bar */
 .mobile-topbar {
   background: var(--sf);
   border-bottom: 1.5px solid var(--bd);
@@ -336,4 +350,32 @@ button {
   .scard { padding: 10px; }
   h1 { font-size: 18px !important; }
   .tbl th, .tbl td { padding: 8px 10px; }
+}
+
+/* ─── FIX ACCESSIBILITY: Skip link untuk keyboard navigation ────────── */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--p);
+  color: #1c1917;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 0 0 8px 0;
+  text-decoration: none;
+  z-index: 9999;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* ─── FIX ACCESSIBILITY: Reduced motion ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

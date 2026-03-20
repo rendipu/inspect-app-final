@@ -10,12 +10,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'favicon.ico'],
       manifest: {
-        name: 'Inspect Mining App',
-        short_name: 'InspectApp',
+        name: 'MineInspect',
+        short_name: 'MineInspect',
         description: 'Aplikasi inspeksi kendaraan alat berat tambang',
         start_url: '/',
         display: 'standalone',
-        background_color: '#0f172a',
+        background_color: '#fafaf7',
         theme_color: '#f59e0b',
         orientation: 'portrait-primary',
         lang: 'id',
@@ -29,16 +29,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Cache strategi
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'cloudinary-images',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
           {
             urlPattern: /\/api\/questions/,
             handler: 'StaleWhileRevalidate',
@@ -57,6 +48,15 @@ export default defineConfig({
           },
           // SSE tidak boleh di-cache
           { urlPattern: /\/api\/sse/, handler: 'NetworkOnly' },
+          // API lainnya network-first
+          {
+            urlPattern: /\/api\/.*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 },
+            },
+          },
         ],
       },
     }),
@@ -64,7 +64,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy semua request /api ke Express server di port 3001
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
@@ -72,14 +71,27 @@ export default defineConfig({
     },
   },
   build: {
+    // FIX PERFORMANCE: target modern browsers untuk bundle lebih kecil
+    target: 'es2020',
+    // FIX PERFORMANCE: compress lebih agresif
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,   // hapus console.log di production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+      },
+    },
     rollupOptions: {
       output: {
-        // Code splitting untuk bundle lebih kecil
+        // FIX PERFORMANCE: code splitting lebih granular
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          recharts: ['recharts'],
+          'react-core':  ['react', 'react-dom'],
+          'recharts':    ['recharts'],
         },
       },
     },
+    // FIX PERFORMANCE: chunk size warning threshold
+    chunkSizeWarningLimit: 600,
   },
 })

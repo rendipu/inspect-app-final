@@ -35,18 +35,31 @@ export default function LoginPage({ onLogin }) {
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--p)' }}>
           <div style={{ marginBottom: 14 }}>
-            <label className="lbl">NRP Karyawan</label>
-            <input value={nrp} onChange={e => { setNrp(e.target.value); setErr('') }}
+            <label className="lbl" htmlFor="login-nrp">NRP Karyawan</label>
+            <input
+              id="login-nrp"
+              value={nrp}
+              onChange={e => { setNrp(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Contoh: 1900374578" style={{ width: '100%' }} />
+              placeholder="Contoh: 1900374578"
+              autoComplete="username"
+              style={{ width: '100%' }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label className="lbl">Password</label>
-            <input type="password" value={pw} onChange={e => { setPw(e.target.value); setErr('') }}
+            <label className="lbl" htmlFor="login-pw">Password</label>
+            <input
+              id="login-pw"
+              type="password"
+              value={pw}
+              onChange={e => { setPw(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="Masukkan password" style={{ width: '100%' }} />
+              placeholder="Masukkan password"
+              autoComplete="current-password"
+              style={{ width: '100%' }}
+            />
           </div>
-          {err && <div style={{ fontSize: 12, color: 'var(--err)', padding: '6px 10px', background: 'var(--errbg)', border: '1px solid var(--errbd)', borderRadius: 6, marginBottom: 8 }}>⚠ {err}</div>}
+          {err && <div role="alert" aria-live="polite" style={{ fontSize: 12, color: 'var(--err)', padding: '6px 10px', background: 'var(--errbg)', border: '1px solid var(--errbd)', borderRadius: 6, marginBottom: 8 }}>⚠ {err}</div>}
           <button className="btn-y" onClick={handleLogin} disabled={loading}
             style={{ width: '100%', padding: 11, fontSize: 14, marginTop: 6, opacity: loading ? 0.7 : 1 }}>
             {loading ? 'Memproses...' : 'MASUK →'}
