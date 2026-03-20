@@ -25,7 +25,7 @@ export default function LoginPage({ onLogin }) {
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
           <div style={{ width: 140, height: 140, margin: '-1rem auto', display: 'block', }}>
             <img
-              src="/logo/mineinspect-crane.png"
+              src="/logo/mineinspect-crane.webp"
               alt="MineInspect Logo"
               style={{ width: 160, height: 160, margin: '-1rem auto', display: 'block', objectFit: 'fill' }}
             />
