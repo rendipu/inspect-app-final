@@ -3,7 +3,6 @@ function fmtTime(d) {
 }
 
 export default function LiveIndicator({ syncing, lastSync, compact = false, rtStatus }) {
-
   const dot = rtStatus === 'connected'
     ? { color: 'var(--ok)',  label: 'Live',        pulse: true  }
     : rtStatus === 'connecting'
@@ -13,8 +12,8 @@ export default function LiveIndicator({ syncing, lastSync, compact = false, rtSt
   return (
     <span className="live-badge">
       {syncing
-        ? <span className="spin" style={{ fontSize:10 }}>↻</span>
-        : <span className="live-dot" style={{ background: dot.color, ...(dot.pulse ? {} : {}) }} />}
+        ? <span className="spin" style={{ fontSize: 10 }}>↻</span>
+        : <span className="live-dot" style={{ background: dot.color }} />}
       <span>
         {syncing ? 'Syncing...' : `${dot.label} · ${fmtTime(lastSync)}`}
       </span>
