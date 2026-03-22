@@ -32,7 +32,6 @@ export default function HourMeter({ data, user, refetch }) {
   )
 
   const selectedUnit = units.find(u => u.id === parseInt(unitId))
-
   // Reset HM input saat ganti unit
   const handleUnitChange = (e) => {
     const u = units.find(x => x.id === parseInt(e.target.value))
@@ -150,9 +149,8 @@ export default function HourMeter({ data, user, refetch }) {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, color: 'var(--t2)', fontWeight: 600 }}>{selectedUnit.nomor_unit}</div>
-                <div style={{ fontSize: 11, color: 'var(--t3)' }}>{selectedUnit.brand} {selectedUnit.tipe}</div>
-                <div style={{ fontSize: 11, color: 'var(--t3)' }}>{selectedUnit.model} · {selectedUnit.tahun}</div>
+                <div style={{ fontSize: 12, color: 'var(--t2)', fontWeight: 600 }}>{selectedUnit.brand}-{selectedUnit.nomor_unit}</div>
+                <div style={{ fontSize: 11, color: 'var(--t3)' }}>update terakhir : {fmtDateTime(selectedUnit.updatedAt)}</div>
               </div>
             </div>
 
@@ -269,7 +267,7 @@ export default function HourMeter({ data, user, refetch }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <div>
                       <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--pd)' }}>{u.nomor_unit}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>{u.brand} {u.tipe}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>Update terakhir: {fmtDateTime(u.updatedAt)}</div>
                     </div>
                     {unitId === String(u.id) && (
                       <span style={{ background: 'var(--p)', color: '#1c1917', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '.04em' }}>
