@@ -198,7 +198,7 @@ export default function HourMeter({ data, user, refetch }) {
             id="catatan" name="catatan"
             value={catatan}
             onChange={e => setCatatan(e.target.value)}
-            placeholder={`e.g. Setelah shift pagi — otomatis: diupdate oleh ${user.nama}`}
+            placeholder={`e.g. Lokasi Unit`}
             style={{ width: '100%' }}
             disabled={!selectedUnit}
           />
