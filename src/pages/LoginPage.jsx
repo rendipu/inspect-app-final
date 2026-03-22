@@ -20,7 +20,7 @@ export default function LoginPage({ onLogin }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <main style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
           <div style={{ width: 140, height: 140, margin: '-1rem auto', display: 'block', }}>
@@ -56,6 +56,6 @@ export default function LoginPage({ onLogin }) {
           Demo: ADM001/admin123 · GL001/gl123 · MK001/mk123
         </div> */}
       </div>
-    </div>
+    </main>
   )
 }

@@ -66,6 +66,7 @@ export default defineConfig({
     proxy: { '/api': { target: 'http://localhost:3001', changeOrigin: true } },
   },
   build: {
+    modulePreload: false,
     minify: 'esbuild',
     target: 'es2020',
     cssCodeSplit: false,
