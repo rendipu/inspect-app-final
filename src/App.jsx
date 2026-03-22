@@ -4,7 +4,7 @@ import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
 
-const isDeviceOnline = useOnline()
+
 
 import Sidebar       from './components/Sidebar'
 import TopBar        from './components/TopBar'
@@ -54,13 +54,23 @@ if (publicMatch) {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('inspect_user')) } catch { return null }
   })
+
+  const [publicQr] = useState(() => {
+    const m = window.location.pathname.match(/^\/u\/(.+)$/)
+    return m ? decodeURIComponent(m[1]) : null
+  })
   const [page,    setPage]    = useState('dashboard')
   const [selUnit, setSelUnit] = useState(null)
   const [showPwa, setShowPwa] = useState(true)
-
+  const isDeviceOnline = useOnline()
   const { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus } = usePolling(15000, !!user)
   const width  = useWindowWidth()
   const isMob  = width < 681
+
+  // Public unit page — tidak butuh login
+  if (publicQr) {
+    return <PublicUnitPage qrCode={publicQr} />
+  }
 
   const handleLogin = (u) => {
     localStorage.setItem('inspect_user', JSON.stringify(u))
@@ -96,7 +106,7 @@ if (publicMatch) {
     hourmeter:  <HourMeter      data={safeData} user={user} refetch={refetch} />,
     stock:      <StockPage      user={user} />,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate])
+  }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate, rtStatus])
 
   if (!user) return <LoginPage onLogin={handleLogin} />
   if (loading && !data) return <LoadingScreen />
