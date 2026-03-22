@@ -32,11 +32,13 @@ export function usePolling(interval = 15000, enabled = true) {
       if (!silent) setLoading(true)
       else setSyncing(true)
 
+      const getLocalYMD = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+
       const [users, unitsRes, questions, schedules, inspRes, recurring] = await Promise.all([
         api.getUsers().catch(() => []),
         api.getUnits(),
         api.getQuestions(),
-        api.getTodaySchedule(),
+        api.getTodaySchedule(getLocalYMD()),
         api.getInspections(),
         api.getRecurringSchedules().catch(() => []),
       ])

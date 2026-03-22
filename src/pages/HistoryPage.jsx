@@ -68,9 +68,10 @@ const WORK_OPTIONS = [
   { v: 'sudah_selesai',    l: '✓ Sudah Dikerjakan',  c: 'var(--ok)'  },
 ]
 
-const TODAY  = new Date().toISOString().split('T')[0]
-const WEEK   = new Date(Date.now() - 7  * 86400000).toISOString().split('T')[0]
-const MONTH  = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+const getLocalYMD = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+const TODAY  = getLocalYMD()
+const WEEK   = getLocalYMD(new Date(Date.now() - 7  * 86400000))
+const MONTH  = getLocalYMD(new Date(Date.now() - 30 * 86400000))
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })

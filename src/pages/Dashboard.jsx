@@ -3,7 +3,8 @@ import jsQR from 'jsqr'
 import Badge from '../components/Badge'
 import LiveIndicator from '../components/LiveIndicator'
 
-const TODAY = new Date().toISOString().split('T')[0]
+const getLocalYMD = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+const TODAY = getLocalYMD()
 
 // ── QR Camera Scanner ─────────────────────────────────────────────────
 function QRCameraScanner({ onResult, onClose }) {
