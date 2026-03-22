@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 
 const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY
 const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'mt1'
-const CHANNEL_NAME   = 'inspect-channel'
+const CHANNEL_NAME   = 'inspect-channel-prod'
 
 export function usePolling(interval = 15000, enabled = true) {
   const [data,     setData]     = useState(null)
