@@ -58,16 +58,16 @@ function UsersTab({ users, refetch }) {
         <div className="card" style={{ marginBottom: 12, background: 'var(--sfy)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }} className="g3">
             {[['NRP *', 'nrp', 'text'], ['Nama *', 'nama', 'text'], ['Jabatan', 'jabatan', 'text']].map(([p, k, t]) => (
-              <input key={k} placeholder={p} type={t} value={form[k]}
+              <input key={k} id={`add-user-${k}`} name={k} aria-label={p} placeholder={p} type={t} value={form[k]}
                 onChange={e => setForm(v => ({ ...v, [k]: e.target.value }))} style={{ ...IS, width: '100%' }} />
             ))}
-            <select value={form.role} onChange={e => setForm(v => ({ ...v, role: e.target.value }))} style={{ ...IS, width: '100%' }}>
+            <select id="add-user-role" name="role" aria-label="Role" value={form.role} onChange={e => setForm(v => ({ ...v, role: e.target.value }))} style={{ ...IS, width: '100%' }}>
               <option value="mekanik">Mekanik</option>
               <option value="group_leader">Group Leader</option>
               <option value="admin">Admin</option>
               <option value="warehouse">Warehouse</option>
             </select>
-            <input placeholder="Password *" type="password" value={form.password}
+            <input id="add-user-pw" name="password" aria-label="Password *" placeholder="Password *" type="password" value={form.password}
               onChange={e => setForm(v => ({ ...v, password: e.target.value }))} style={{ ...IS, width: '100%' }} />
             <button className="btn-ok" onClick={saveNew} disabled={saving}>{saving ? '...' : 'Simpan'}</button>
           </div>
@@ -85,11 +85,11 @@ function UsersTab({ users, refetch }) {
                 <tr key={u._id}>
                   {editRow?._id === u._id ? (
                     <>
-                      <td><input value={editRow.nrp} onChange={e => setEditRow(v => ({ ...v, nrp: e.target.value }))} style={IS} /></td>
-                      <td><input value={editRow.nama} onChange={e => setEditRow(v => ({ ...v, nama: e.target.value }))} style={IS} /></td>
-                      <td><input value={editRow.jabatan || ''} onChange={e => setEditRow(v => ({ ...v, jabatan: e.target.value }))} style={IS} /></td>
+                      <td><input id={`edit-nrp-${u.id}`} name={`edit_nrp_${u.id}`} aria-label="NRP" value={editRow.nrp} onChange={e => setEditRow(v => ({ ...v, nrp: e.target.value }))} style={IS} /></td>
+                      <td><input id={`edit-nama-${u.id}`} name={`edit_nama_${u.id}`} aria-label="Nama" value={editRow.nama} onChange={e => setEditRow(v => ({ ...v, nama: e.target.value }))} style={IS} /></td>
+                      <td><input id={`edit-jabatan-${u.id}`} name={`edit_jabatan_${u.id}`} aria-label="Jabatan" value={editRow.jabatan || ''} onChange={e => setEditRow(v => ({ ...v, jabatan: e.target.value }))} style={IS} /></td>
                       <td>
-                        <select value={editRow.role} onChange={e => setEditRow(v => ({ ...v, role: e.target.value }))} style={IS}>
+                        <select id={`edit-role-${u.id}`} name={`edit_role_${u.id}`} aria-label="Role" value={editRow.role} onChange={e => setEditRow(v => ({ ...v, role: e.target.value }))} style={IS}>
                           <option value="mekanik">mekanik</option>
                           <option value="group_leader">group_leader</option>
                           <option value="admin">admin</option>
@@ -169,12 +169,12 @@ function UnitsTab({ units, refetch }) {
         <div className="card" style={{ marginBottom: 12, background: 'var(--sfy)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }} className="g3">
             {[['No. Unit *', 'nomor_unit'], ['Tipe *', 'tipe'], ['Brand *', 'brand'], ['Model', 'model']].map(([p, k]) => (
-              <input key={k} placeholder={p} value={form[k]}
+              <input key={k} id={`add-unit-${k}`} name={k} aria-label={p} placeholder={p} value={form[k]}
                 onChange={e => setForm(v => ({ ...v, [k]: e.target.value }))} style={{ ...IS, width: '100%' }} />
             ))}
-            <input placeholder="Tahun" type="number" value={form.tahun}
+            <input id="add-unit-tahun" name="tahun" aria-label="Tahun" placeholder="Tahun" type="number" value={form.tahun}
               onChange={e => setForm(v => ({ ...v, tahun: e.target.value }))} style={{ ...IS, width: '100%' }} />
-            <input placeholder="Hour Meter" type="number" value={form.hm}
+            <input id="add-unit-hm" name="hm" aria-label="Hour Meter" placeholder="Hour Meter" type="number" value={form.hm}
               onChange={e => setForm(v => ({ ...v, hm: e.target.value }))} style={{ ...IS, width: '100%' }} />
             <button className="btn-ok" onClick={saveNew} disabled={saving}>{saving ? '...' : 'Simpan'}</button>
           </div>
@@ -192,12 +192,12 @@ function UnitsTab({ units, refetch }) {
                 <tr key={u._id}>
                   {editRow?._id === u._id ? (
                     <>
-                      <td><input value={editRow.nomor_unit} onChange={e => setEditRow(v => ({ ...v, nomor_unit: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
-                      <td><input value={editRow.tipe} onChange={e => setEditRow(v => ({ ...v, tipe: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
-                      <td><input value={editRow.brand} onChange={e => setEditRow(v => ({ ...v, brand: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
-                      <td><input value={editRow.model || ''} onChange={e => setEditRow(v => ({ ...v, model: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
-                      <td><input type="number" value={editRow.tahun || ''} onChange={e => setEditRow(v => ({ ...v, tahun: parseInt(e.target.value) }))} style={{ ...IS, width: 70 }} /></td>
-                      <td><input type="number" value={editRow.hm || 0} onChange={e => setEditRow(v => ({ ...v, hm: parseFloat(e.target.value) }))} style={{ ...IS, width: 80 }} /></td>
+                      <td><input id={`edit-nomor-${u.id}`} name={`edit_nomor_${u.id}`} aria-label="No. Unit" value={editRow.nomor_unit} onChange={e => setEditRow(v => ({ ...v, nomor_unit: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
+                      <td><input id={`edit-tipe-${u.id}`} name={`edit_tipe_${u.id}`} aria-label="Tipe" value={editRow.tipe} onChange={e => setEditRow(v => ({ ...v, tipe: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
+                      <td><input id={`edit-brand-${u.id}`} name={`edit_brand_${u.id}`} aria-label="Brand" value={editRow.brand} onChange={e => setEditRow(v => ({ ...v, brand: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
+                      <td><input id={`edit-model-${u.id}`} name={`edit_model_${u.id}`} aria-label="Model" value={editRow.model || ''} onChange={e => setEditRow(v => ({ ...v, model: e.target.value }))} style={{ ...IS, width: '100%' }} /></td>
+                      <td><input id={`edit-tahun-${u.id}`} name={`edit_tahun_${u.id}`} aria-label="Tahun" type="number" value={editRow.tahun || ''} onChange={e => setEditRow(v => ({ ...v, tahun: parseInt(e.target.value) }))} style={{ ...IS, width: 70 }} /></td>
+                      <td><input id={`edit-hm-${u.id}`} name={`edit_hm_${u.id}`} aria-label="Hour Meter" type="number" value={editRow.hm || 0} onChange={e => setEditRow(v => ({ ...v, hm: parseFloat(e.target.value) }))} style={{ ...IS, width: 80 }} /></td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn-ok btn-sm" style={{ marginRight: 4 }} onClick={saveEdit} disabled={saving}>✓</button>
                         <button className="btn-g btn-sm" onClick={() => setEditRow(null)}>✕</button>
@@ -252,7 +252,7 @@ function TagInput({ tags, onChange, placeholder }) {
           <span onClick={(e) => { e.stopPropagation(); remove(i) }} style={{ cursor: 'pointer', fontSize: 13, lineHeight: 1, opacity: 0.7 }}>×</span>
         </span>
       ))}
-      <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
+      <input id={`tag-input-${Math.random().toString(36).substr(2, 9)}`} name="tagInput" aria-label={placeholder || "Ketik tag..."} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}
         onBlur={() => { if (input.trim()) add(input) }}
         placeholder={tags.length === 0 ? placeholder : ''}
         style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12, color: 'var(--t)', flex: 1, minWidth: 60, padding: '2px 0' }} />
@@ -305,11 +305,11 @@ function QuestionsTab({ questions, refetch }) {
       {showForm && (
         <div className="card" style={{ marginBottom: 12, background: 'var(--sfy)' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <input placeholder="Kategori *" value={form.kategori}
+            <input id="add-q-kat" name="kategori" aria-label="Kategori *" placeholder="Kategori *" value={form.kategori}
               onChange={e => setForm(v => ({ ...v, kategori: e.target.value }))} style={{ ...IS, width: 120 }} />
-            <input placeholder="Pertanyaan *" value={form.pertanyaan}
+            <input id="add-q-pertanyaan" name="pertanyaan" aria-label="Pertanyaan *" placeholder="Pertanyaan *" value={form.pertanyaan}
               onChange={e => setForm(v => ({ ...v, pertanyaan: e.target.value }))} style={{ ...IS, flex: 1, minWidth: 200 }} />
-            <input placeholder="No." type="number" value={form.urutan}
+            <input id="add-q-urutan" name="urutan" aria-label="No." placeholder="No." type="number" value={form.urutan}
               onChange={e => setForm(v => ({ ...v, urutan: e.target.value }))} style={{ ...IS, width: 60 }} />
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'flex-start' }}>
@@ -334,11 +334,11 @@ function QuestionsTab({ questions, refetch }) {
           <div key={q._id} className="scard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             {editRow?.id === q.id ? (
               <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <input type="number" value={editRow.urutan}
+                <input id={`edit-q-urutan-${q.id}`} name={`edit_q_urutan_${q.id}`} aria-label="Urutan" type="number" value={editRow.urutan}
                   onChange={e => setEditRow(v => ({ ...v, urutan: parseInt(e.target.value) }))} style={{ ...IS, width: 55 }} />
-                <input value={editRow.kategori}
+                <input id={`edit-q-kat-${q.id}`} name={`edit_q_kat_${q.id}`} aria-label="Kategori" value={editRow.kategori}
                   onChange={e => setEditRow(v => ({ ...v, kategori: e.target.value }))} style={{ ...IS, width: 110 }} />
-                <input value={editRow.pertanyaan}
+                <input id={`edit-q-pertanyaan-${q.id}`} name={`edit_q_pertanyaan_${q.id}`} aria-label="Pertanyaan" value={editRow.pertanyaan}
                   onChange={e => setEditRow(v => ({ ...v, pertanyaan: e.target.value }))} style={{ ...IS, flex: 1, minWidth: 180 }} />
                 <div style={{ minWidth: 140 }}>
                   <TagInput tags={toArr(editRow.unit_tipe)} onChange={v => setEditRow(r => ({ ...r, unit_tipe: v }))} placeholder="Tipe..." />
@@ -415,8 +415,8 @@ function SchedulesTab({ units, recurring, refetch }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--pd)', marginBottom: 10 }}>Tambah Jadwal Berulang</div>
 
         <div style={{ marginBottom: 10 }}>
-          <label className="lbl">Unit</label>
-          <select value={form.unit_id} onChange={e => setForm(v => ({ ...v, unit_id: e.target.value }))} style={{ ...IS, width: '100%' }}>
+          <label className="lbl" htmlFor="add-jadwal-unit">Unit</label>
+          <select id="add-jadwal-unit" name="unit_id" value={form.unit_id} onChange={e => setForm(v => ({ ...v, unit_id: e.target.value }))} style={{ ...IS, width: '100%' }}>
             <option value="">-- Pilih Unit --</option>
             {/* value={u.id} agar parseInt(form.unit_id) bisa dikirim ke API sebagai integer */}
             {unitsWithoutSchedule.map(u => (

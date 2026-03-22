@@ -112,7 +112,7 @@ function TrendChart({ inspections, units, period }) {
     <div>
       <div style={{ marginBottom: 14 }}>
         {/* FIX #2a: value={u.id} (integer) agar parseInt cocok dengan i.unit_id */}
-        <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
+        <select id="filter-unit-trend" name="unitF" aria-label="Filter Unit Trend" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>

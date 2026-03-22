@@ -92,8 +92,9 @@ export default function HourMeter({ data, user, refetch }) {
           <div className="lbl" style={{ marginBottom: 8 }}>Filter Unit</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
             <div>
-              <label className="lbl">Tipe Unit</label>
+              <label className="lbl" htmlFor="filter-tipe">Tipe Unit</label>
               <select
+                id="filter-tipe" name="filterTipe"
                 value={filterTipe}
                 onChange={e => { setFilterTipe(e.target.value); setUnitId(''); setHmAfter('') }}
                 style={{ width: '100%' }}
@@ -103,8 +104,9 @@ export default function HourMeter({ data, user, refetch }) {
               </select>
             </div>
             <div>
-              <label className="lbl">Brand</label>
+              <label className="lbl" htmlFor="filter-brand">Brand</label>
               <select
+                id="filter-brand" name="filterBrand"
                 value={filterBrand}
                 onChange={e => { setFilterBrand(e.target.value); setUnitId(''); setHmAfter('') }}
                 style={{ width: '100%' }}
@@ -118,8 +120,8 @@ export default function HourMeter({ data, user, refetch }) {
 
         {/* Pilih unit */}
         <div style={{ marginBottom: 12 }}>
-          <label className="lbl">Unit * ({filteredUnits.length} unit)</label>
-          <select value={unitId} onChange={handleUnitChange} style={{ width: '100%' }}>
+          <label className="lbl" htmlFor="unit-id">Unit * ({filteredUnits.length} unit)</label>
+          <select id="unit-id" name="unitId" value={unitId} onChange={handleUnitChange} style={{ width: '100%' }}>
             <option value="">-- Pilih Unit --</option>
             {filteredUnits.map(u => (
               <option key={u._id} value={u._id}>
@@ -175,8 +177,9 @@ export default function HourMeter({ data, user, refetch }) {
 
         {/* Input HM baru */}
         <div style={{ marginBottom: 12 }}>
-          <label className="lbl">Hour Meter Baru *</label>
+          <label className="lbl" htmlFor="hm-baru">Hour Meter Baru *</label>
           <input
+            id="hm-baru" name="hmAfter"
             type="number"
             value={hmAfter}
             onChange={e => { setHmAfter(e.target.value); setError('') }}
@@ -190,8 +193,9 @@ export default function HourMeter({ data, user, refetch }) {
 
         {/* Catatan opsional */}
         <div style={{ marginBottom: 12 }}>
-          <label className="lbl">Catatan (opsional)</label>
+          <label className="lbl" htmlFor="catatan">Catatan (opsional)</label>
           <input
+            id="catatan" name="catatan"
             value={catatan}
             onChange={e => setCatatan(e.target.value)}
             placeholder={`e.g. Setelah shift pagi — otomatis: diupdate oleh ${user.nama}`}
@@ -230,11 +234,11 @@ export default function HourMeter({ data, user, refetch }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div className="lbl" style={{ marginBottom: 0 }}>⏱ HM Terkini Semua Unit</div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <select value={filterTipe} onChange={e => setFilterTipe(e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }}>
+            <select id="filter-tipe-list" name="filterTipeList" aria-label="Filter Tipe" value={filterTipe} onChange={e => setFilterTipe(e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }}>
               <option value="all">Semua Tipe</option>
               {tipes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }}>
+            <select id="filter-brand-list" name="filterBrandList" aria-label="Filter Brand" value={filterBrand} onChange={e => setFilterBrand(e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }}>
               <option value="all">Semua Brand</option>
               {brands.map(b => <option key={b} value={b}>{b}</option>)}
             </select>

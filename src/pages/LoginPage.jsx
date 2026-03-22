@@ -35,14 +35,14 @@ export default function LoginPage({ onLogin }) {
         </div>
         <div className="card" style={{ borderTop: '3px solid var(--p)' }}>
           <div style={{ marginBottom: 14 }}>
-            <label className="lbl">NRP Karyawan</label>
-            <input value={nrp} onChange={e => { setNrp(e.target.value); setErr('') }}
+            <label className="lbl" htmlFor="nrp">NRP Karyawan</label>
+            <input id="nrp" name="nrp" value={nrp} onChange={e => { setNrp(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="Contoh: 1900374578" style={{ width: '100%' }} />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label className="lbl">Password</label>
-            <input type="password" value={pw} onChange={e => { setPw(e.target.value); setErr('') }}
+            <label className="lbl" htmlFor="pw">Password</label>
+            <input id="pw" name="pw" type="password" value={pw} onChange={e => { setPw(e.target.value); setErr('') }}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="Masukkan password" style={{ width: '100%' }} />
           </div>

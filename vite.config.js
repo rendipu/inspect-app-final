@@ -8,7 +8,6 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // FIX RENDER BLOCKING: inject registerSW dengan defer bukan blocking
       injectRegister: 'script-defer',
       includeAssets: ['icons/*.png', 'favicon.ico', 'logo/*.webp'],
       manifest: {
@@ -31,11 +30,33 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Jangan cache /api sama sekali — semua API request harus ke network langsung
+        // Ini mencegah Workbox mencoba parse response API dan crash dengan
+        // "Cannot read properties of undefined (reading 'payload')"
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
-          { urlPattern: /\/api\/questions/, handler: 'StaleWhileRevalidate', options: { cacheName: 'api-questions', expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
-          { urlPattern: /\/api\/units/,     handler: 'StaleWhileRevalidate', options: { cacheName: 'api-units',     expiration: { maxEntries: 10, maxAgeSeconds: 300 } } },
-          { urlPattern: /\/api\/sse/,        handler: 'NetworkOnly' },
-          { urlPattern: /\/api\/.*/,         handler: 'NetworkFirst', options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 } } },
+          {
+            // Cache font Google
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Cache assets statis (logo, icons)
+            urlPattern: /\.(png|jpg|jpeg|webp|svg|ico)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'static-assets',
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          // TIDAK ada cache untuk /api/* — semua API harus NetworkOnly
+          // karena data inspeksi harus selalu fresh dari server
         ],
       },
     }),
@@ -47,8 +68,6 @@ export default defineConfig({
   build: {
     minify: 'esbuild',
     target: 'es2020',
-    // FIX RENDER BLOCKING: inject CSS sebagai non-blocking (inline di JS)
-    // CSS tidak di-extract ke file terpisah sehingga tidak ada <link> blocking
     cssCodeSplit: false,
     rollupOptions: {
       output: {

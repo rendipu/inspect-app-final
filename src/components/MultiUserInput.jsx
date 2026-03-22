@@ -117,6 +117,7 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
 
         {/* Input teks */}
         <input
+          id="multi-user-input" name="multiUserInput" aria-label={placeholder || 'Ketik nama mekanik'}
           ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}

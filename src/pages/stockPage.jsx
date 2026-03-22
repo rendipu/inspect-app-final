@@ -334,10 +334,11 @@ function ImportExcelModal({ onClose, onDone }) {
                 </div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <label style={{ fontSize:12, color:'var(--t2)', fontWeight:600, whiteSpace:'nowrap' }}>
+                <label htmlFor="default-loc" style={{ fontSize:12, color:'var(--t2)', fontWeight:600, whiteSpace:'nowrap' }}>
                   Default Location:
                 </label>
                 <input
+                  id="default-loc" name="defaultLoc"
                   value={defaultLoc}
                   onChange={e => setDefaultLoc(e.target.value.toUpperCase())}
                   placeholder="e.g. SWI"
@@ -521,47 +522,47 @@ function StockForm({ item, onSave, onClose, saving }) {
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }} className="g2">
           <div style={{ gridColumn:'1 / -1' }}>
-            <label className="lbl">Part Number *</label>
-            <input value={form.part_number} onChange={e => set('part_number', e.target.value)}
+            <label className="lbl" htmlFor="part-number">Part Number *</label>
+            <input id="part-number" name="part_number" value={form.part_number} onChange={e => set('part_number', e.target.value)}
               placeholder="e.g. AF-BT1234" style={{ width:'100%' }} disabled={isEdit} />
             {isEdit && <div style={{ fontSize:10, color:'var(--t3)', marginTop:3 }}>Part number tidak bisa diubah</div>}
           </div>
           <div style={{ gridColumn:'1 / -1' }}>
-            <label className="lbl">Material Description *</label>
-            <input value={form.material_description} onChange={e => set('material_description', e.target.value)}
+            <label className="lbl" htmlFor="mat-desc">Material Description *</label>
+            <input id="mat-desc" name="material_description" value={form.material_description} onChange={e => set('material_description', e.target.value)}
               placeholder="e.g. Air Filter Element" style={{ width:'100%' }} />
           </div>
           <div>
-            <label className="lbl">Jumlah Stock</label>
-            <input type="number" value={form.jumlah_stock} onChange={e => set('jumlah_stock', e.target.value)}
+            <label className="lbl" htmlFor="jumlah-stock">Jumlah Stock</label>
+            <input id="jumlah-stock" name="jumlah_stock" type="number" value={form.jumlah_stock} onChange={e => set('jumlah_stock', e.target.value)}
               placeholder="0" min="0" style={{ width:'100%' }} disabled={isEdit} />
             {isEdit && <div style={{ fontSize:10, color:'var(--t3)', marginTop:3 }}>Ubah via Stock Movement</div>}
           </div>
           <div>
-            <label className="lbl">Satuan *</label>
-            <select value={form.satuan} onChange={e => set('satuan', e.target.value)} style={{ width:'100%' }}>
+            <label className="lbl" htmlFor="satuan">Satuan *</label>
+            <select id="satuan" name="satuan" value={form.satuan} onChange={e => set('satuan', e.target.value)} style={{ width:'100%' }}>
               {SATUAN_LIST.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="lbl">Location Storage</label>
-            <input value={form.location_storage} onChange={e => set('location_storage', e.target.value)}
+            <label className="lbl" htmlFor="location">Location Storage</label>
+            <input id="location" name="location_storage" value={form.location_storage} onChange={e => set('location_storage', e.target.value)}
               placeholder="e.g. SWI" style={{ width:'100%' }} />
           </div>
           <div>
-            <label className="lbl">Minimum Stock</label>
-            <input type="number" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)}
+            <label className="lbl" htmlFor="min-stock">Minimum Stock</label>
+            <input id="min-stock" name="minimum_stock" type="number" value={form.minimum_stock} onChange={e => set('minimum_stock', e.target.value)}
               placeholder="0" min="0" style={{ width:'100%' }} />
             <div style={{ fontSize:10, color:'var(--t3)', marginTop:3 }}>Alert jika stock ≤ nilai ini</div>
           </div>
           <div>
-            <label className="lbl">Harga Satuan (Rp)</label>
-            <input type="number" value={form.harga_satuan} onChange={e => set('harga_satuan', e.target.value)}
+            <label className="lbl" htmlFor="harga-satuan">Harga Satuan (Rp)</label>
+            <input id="harga-satuan" name="harga_satuan" type="number" value={form.harga_satuan} onChange={e => set('harga_satuan', e.target.value)}
               placeholder="opsional" min="0" style={{ width:'100%' }} />
           </div>
           <div style={{ gridColumn:'1 / -1' }}>
-            <label className="lbl">Keterangan</label>
-            <textarea value={form.keterangan} onChange={e => set('keterangan', e.target.value)}
+            <label className="lbl" htmlFor="keterangan-stock">Keterangan</label>
+            <textarea id="keterangan-stock" name="keterangan" value={form.keterangan} onChange={e => set('keterangan', e.target.value)}
               placeholder="Catatan tambahan..." rows={2} style={{ width:'100%', resize:'none' }} />
           </div>
         </div>
@@ -634,8 +635,8 @@ function MovementForm({ item, onSave, onClose, saving }) {
         </div>
 
         <div style={{ marginBottom:12 }}>
-          <label className="lbl">{tipe === 'adjustment' ? 'Jumlah Stock Baru' : 'Jumlah'} *</label>
-          <input type="number" value={jumlah} onChange={e => setJumlah(e.target.value)}
+          <label className="lbl" htmlFor="jumlah-move">{tipe === 'adjustment' ? 'Jumlah Stock Baru' : 'Jumlah'} *</label>
+          <input id="jumlah-move" name="jumlahMove" type="number" value={jumlah} onChange={e => setJumlah(e.target.value)}
             placeholder={tipe === 'adjustment' ? 'Stock baru...' : 'Masukkan jumlah...'}
             min="0" style={{ width:'100%' }} />
         </div>
@@ -654,8 +655,8 @@ function MovementForm({ item, onSave, onClose, saving }) {
         )}
 
         <div style={{ marginBottom:20 }}>
-          <label className="lbl">Keterangan</label>
-          <input value={keterangan} onChange={e => setKeterangan(e.target.value)}
+          <label className="lbl" htmlFor="ket-move">Keterangan</label>
+          <input id="ket-move" name="keteranganMove" value={keterangan} onChange={e => setKeterangan(e.target.value)}
             placeholder="e.g. Penerimaan PO #1234" style={{ width:'100%' }} />
         </div>
 
@@ -725,7 +726,7 @@ export default function StockPage({ user }) {
   })
 
   const totalItems = stocks.length
-  const lowItems   = stocks.filter(s => s.jumlah_stock <=3 && s.jumlah_stock <= s.minimum_stock).length
+  const lowItems   = stocks.filter(s => s.jumlah_stock <2 && s.jumlah_stock > 0).length
   const emptyItems = stocks.filter(s => s.jumlah_stock === 0).length
   const totalNilai = stocks.reduce((sum, s) => sum + (s.jumlah_stock * (s.harga_satuan || 0)), 0)
 
@@ -817,12 +818,13 @@ export default function StockPage({ user }) {
       {/* Toolbar */}
       <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
         <input
+          id="search-stock" name="searchStock" aria-label="Cari part number"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="🔍 Cari part number / deskripsi / lokasi..."
           style={{ flex:1, minWidth:200 }}
         />
-        <select value={filterSatuan} onChange={e => setFilterSatuan(e.target.value)} style={{ minWidth:100 }}>
+        <select id="filter-satuan" name="filterSatuan" aria-label="Filter Satuan" value={filterSatuan} onChange={e => setFilterSatuan(e.target.value)} style={{ minWidth:100 }}>
           {satuanList.map(s => <option key={s} value={s}>{s === 'all' ? 'Semua Satuan' : s}</option>)}
         </select>
         <button

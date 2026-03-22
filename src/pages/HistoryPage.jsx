@@ -130,13 +130,13 @@ function DateFilter({ from, to, setFrom, setTo }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12, color: 'var(--t3)', whiteSpace: 'nowrap' }}>Dari</span>
-            <input type="date" value={from} max={to || TODAY}
+            <input id="filter-from" name="filter-from" aria-label="Tanggal Dari" type="date" value={from} max={to || TODAY}
               onChange={e => { setFrom(e.target.value); setPreset('custom') }}
               style={{ fontSize: 12, padding: '5px 8px' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 12, color: 'var(--t3)', whiteSpace: 'nowrap' }}>Sampai</span>
-            <input type="date" value={to} min={from} max={TODAY}
+            <input id="filter-to" name="filter-to" aria-label="Tanggal Sampai" type="date" value={to} min={from} max={TODAY}
               onChange={e => { setTo(e.target.value); setPreset('custom') }}
               style={{ fontSize: 12, padding: '5px 8px' }} />
           </div>
@@ -326,7 +326,7 @@ function TabInspeksi({ data }) {
 
       <div style={{ marginBottom: 14 }}>
         {/* FIX #1b: value={u.id} bukan u._id agar parseInt cocok dengan i.unit_id */}
-        <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 200 }}>
+        <select id="filter-unit-inspeksi" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 200 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
@@ -448,7 +448,7 @@ function TabKerusakan({ data, user, refetch }) {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* FIX #1b: value={u.id} integer agar cocok dengan parseInt di filter */}
-        <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
+        <select id="filter-unit-kerusakan" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
@@ -537,7 +537,7 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {/* FIX #1b: value={u.id} integer */}
-        <select value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
+        <select id="filter-unit-status" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>

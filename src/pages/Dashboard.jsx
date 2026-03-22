@@ -105,6 +105,7 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
+            id="scan-input" name="scan" aria-label="Ketik No. Unit (DZ-001) atau kode QR"
             value={scan}
             onChange={e => { setScan(e.target.value); setScanRes(null) }}
             onKeyDown={e => e.key === 'Enter' && handleScan()}

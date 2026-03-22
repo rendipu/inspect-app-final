@@ -235,8 +235,9 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="g2">
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label className="lbl">Unit *</label>
+            <label className="lbl" htmlFor="unit-id">Unit *</label>
             <select
+              id="unit-id" name="unitId"
               value={unitId}
               onChange={e => { setUnitId(e.target.value); setAns({}); setStockInfo({}) }}
               style={{ ...IS, borderColor: alreadyDone ? 'var(--err)' : undefined }}
@@ -290,8 +291,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
           {!alreadyDone && unitId && (
             <>
               <div>
-                <label className="lbl">Hour Meter *</label>
-                <input type="number" value={hm} onChange={e => handleHmChange(e.target.value)}
+                <label className="lbl" htmlFor="hm">Hour Meter *</label>
+                <input id="hm" name="hm" type="number" value={hm} onChange={e => handleHmChange(e.target.value)}
                   placeholder={selectedUnit ? `Min. ${selectedUnit.hm}` : 'e.g. 4523'}
                   min={selectedUnit?.hm || 0} step="0.1"
                   style={{ ...IS, borderColor: hmError ? 'var(--err)' : undefined }} />
@@ -307,18 +308,18 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
               </div>
 
               <div>
-                <label className="lbl">Jam Start *</label>
-                <input type="time" value={start} onChange={e => setStart(e.target.value)} style={IS} />
+                <label className="lbl" htmlFor="jam-start">Jam Start *</label>
+                <input id="jam-start" name="jamStart" type="time" value={start} onChange={e => setStart(e.target.value)} style={IS} />
               </div>
 
               <div>
-                <label className="lbl">Jam Finish *</label>
-                <input type="time" value={finish} onChange={e => setFinish(e.target.value)} style={IS} />
+                <label className="lbl" htmlFor="jam-finish">Jam Finish *</label>
+                <input id="jam-finish" name="jamFinish" type="time" value={finish} onChange={e => setFinish(e.target.value)} style={IS} />
               </div>
 
               <div>
-                <label className="lbl">Group Leader *</label>
-                <select value={glId} onChange={e => setGlId(e.target.value)} style={IS}>
+                <label className="lbl" htmlFor="gl-id">Group Leader *</label>
+                <select id="gl-id" name="glId" value={glId} onChange={e => setGlId(e.target.value)} style={IS}>
                   <option value="">-- Pilih GL --</option>
                   {gls.map(g => <option key={g.id} value={g.id}>{g.nama}</option>)}
                 </select>
@@ -360,11 +361,11 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t)', marginBottom: 4 }}>
                     {q.urutan}. {q.pertanyaan}
                   </div>
-                  {(Array.isArray(q.unit_tipe) ? q.unit_tipe.length > 0 : q.unit_tipe) || (Array.isArray(q.brand) ? q.brand.length > 0 : q.brand) ? (
+                  {/* {(Array.isArray(q.unit_tipe) ? q.unit_tipe.length > 0 : q.unit_tipe) || (Array.isArray(q.brand) ? q.brand.length > 0 : q.brand) ? (
                     <div style={{ fontSize: 10, color: 'var(--inf)', marginBottom: 8 }}>
                       Khusus: {[...(Array.isArray(q.brand) ? q.brand : (q.brand ? [q.brand] : [])), ...(Array.isArray(q.unit_tipe) ? q.unit_tipe : (q.unit_tipe ? [q.unit_tipe] : []))].join(', ')}
                     </div>
-                  ) : null}
+                  ) : null} */}
 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: (a.answer === 'bad' || a.answer === 'repair') ? 12 : 0 }}>
                     {['good', 'bad', 'repair'].map(opt => {
@@ -384,14 +385,15 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>⚠ Data Order Part</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
                         <div>
-                          <label className="lbl">Part Name *</label>
-                          <input value={a.part_name || ''} onChange={e => setA(q.id, 'part_name', e.target.value)}
+                          <label className="lbl" htmlFor={`part-name-${q.id}`}>Part Name *</label>
+                          <input id={`part-name-${q.id}`} name={`part_name_${q.id}`} value={a.part_name || ''} onChange={e => setA(q.id, 'part_name', e.target.value)}
                             placeholder="e.g. Air Filter"
                             style={{ ...IS, borderColor: a.part_name === '' ? 'var(--err)' : undefined }} />
                         </div>
                         <div>
-                          <label className="lbl">Part Number</label>
+                          <label className="lbl" htmlFor={`part-num-${q.id}`}>Part Number</label>
                           <input
+                            id={`part-num-${q.id}`} name={`part_num_${q.id}`}
                             value={a.part_number || ''}
                             onChange={e => {
                               setA(q.id, 'part_number', e.target.value)
@@ -400,12 +402,12 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                             placeholder="e.g. AF-1234" style={IS} />
                         </div>
                         <div>
-                          <label className="lbl">Quantity *</label>
-                          <input type="number" value={a.qty ?? 1} onChange={e => setA(q.id, 'qty', e.target.value)} placeholder="1" min="1" style={IS} />
+                          <label className="lbl" htmlFor={`qty-${q.id}`}>Quantity *</label>
+                          <input id={`qty-${q.id}`} name={`qty_${q.id}`} type="number" value={a.qty ?? 1} onChange={e => setA(q.id, 'qty', e.target.value)} placeholder="1" min="1" style={IS} />
                         </div>
                         <div>
-                          <label className="lbl">Keterangan</label>
-                          <input value={a.ket || ''} onChange={e => setA(q.id, 'ket', e.target.value)} placeholder="Detail kondisi..." style={IS} />
+                          <label className="lbl" htmlFor={`ket-${q.id}`}>Keterangan</label>
+                          <input id={`ket-${q.id}`} name={`ket_${q.id}`} value={a.ket || ''} onChange={e => setA(q.id, 'ket', e.target.value)} placeholder="Detail kondisi..." style={IS} />
                         </div>
                       </div>
 
@@ -463,7 +465,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                   {a.answer === 'repair' && (
                     <div style={{ background: 'var(--wnbg)', border: '1.5px solid var(--wnbd)', borderRadius: 8, padding: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--wn)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>🔧 Detail Perbaikan</div>
-                      <textarea value={a.rep_ket || ''} onChange={e => setA(q.id, 'rep_ket', e.target.value)}
+                      <textarea aria-label={`Detail perbaikan ${q.pertanyaan}`} id={`rep-ket-${q.id}`} name={`rep_ket_${q.id}`} value={a.rep_ket || ''} onChange={e => setA(q.id, 'rep_ket', e.target.value)}
                         placeholder="Jelaskan perbaikan yang dilakukan..." rows={2} style={{ ...IS, resize: 'none', marginBottom: 10 }} />
 
                       {/* Status Pengerjaan */}
@@ -506,23 +508,23 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
                           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--err)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>⚠ Data Order Part</div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }} className="g2">
                             <div>
-                              <label className="lbl">Part Name *</label>
-                              <input value={a.rep_part_name || ''} onChange={e => setA(q.id, 'rep_part_name', e.target.value)}
+                              <label className="lbl" htmlFor={`rep-part-name-${q.id}`}>Part Name *</label>
+                              <input id={`rep-part-name-${q.id}`} name={`rep_part_name_${q.id}`} value={a.rep_part_name || ''} onChange={e => setA(q.id, 'rep_part_name', e.target.value)}
                                 placeholder="e.g. Air Filter" style={{ ...IS, borderColor: a.rep_part_name === '' ? 'var(--err)' : undefined }} />
                             </div>
                             <div>
-                              <label className="lbl">Part Number</label>
-                              <input value={a.rep_part_number || ''}
+                              <label className="lbl" htmlFor={`rep-part-num-${q.id}`}>Part Number</label>
+                              <input id={`rep-part-num-${q.id}`} name={`rep_part_num_${q.id}`} value={a.rep_part_number || ''}
                                 onChange={e => { setA(q.id, 'rep_part_number', e.target.value); checkStock(q.id + '_rep', e.target.value) }}
                                 placeholder="e.g. AF-1234" style={IS} />
                             </div>
                             <div>
-                              <label className="lbl">Quantity *</label>
-                              <input type="number" value={a.rep_qty ?? 1} onChange={e => setA(q.id, 'rep_qty', e.target.value)} placeholder="1" min="1" style={IS} />
+                              <label className="lbl" htmlFor={`rep-qty-${q.id}`}>Quantity *</label>
+                              <input id={`rep-qty-${q.id}`} name={`rep_qty_${q.id}`} type="number" value={a.rep_qty ?? 1} onChange={e => setA(q.id, 'rep_qty', e.target.value)} placeholder="1" min="1" style={IS} />
                             </div>
                             <div>
-                              <label className="lbl">Keterangan</label>
-                              <input value={a.rep_part_ket || ''} onChange={e => setA(q.id, 'rep_part_ket', e.target.value)} placeholder="Detail kebutuhan..." style={IS} />
+                              <label className="lbl" htmlFor={`rep-ket-${q.id}`}>Keterangan</label>
+                              <input id={`rep-ket-${q.id}`} name={`rep_part_ket_${q.id}`} value={a.rep_part_ket || ''} onChange={e => setA(q.id, 'rep_part_ket', e.target.value)} placeholder="Detail kebutuhan..." style={IS} />
                             </div>
                           </div>
                           {/* Caution stok untuk repair order */}

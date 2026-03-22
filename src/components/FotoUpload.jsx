@@ -130,6 +130,8 @@ export default function FotoUpload({ value, onChange, label = '📷 Upload Foto'
         onChange={handleInput}
         style={{ display: 'none' }}
         id={idRef.current}
+        name="fotoUpload"
+        aria-label={label || 'Upload Foto'}
       />
       <div
         onDrop={handleDrop}
