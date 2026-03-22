@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'script-defer',
+      injectRegister: false,
       includeAssets: ['icons/*.png', 'favicon.ico', 'logo/*.webp'],
       manifest: {
         name: 'MineInspect',
