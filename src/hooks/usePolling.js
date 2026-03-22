@@ -3,7 +3,7 @@ import Pusher from 'pusher-js'
 import { api } from '../lib/api'
 
 const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY
-const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'ap1'
+const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'mt1'
 const CHANNEL_NAME   = 'inspect-channel'
 
 export function usePolling(interval = 15000, enabled = true) {
@@ -81,10 +81,20 @@ export function usePolling(interval = 15000, enabled = true) {
     })
     pusherRef.current = pusher
 
-    // Status koneksi
-    pusher.connection.bind('connected',    () => { if (isMounted.current) setRtStatus('connected')   })
+    // Timeout jika koneksi nyangkut lebih dari 10 detik (misal diblokir provider HP)
+    const connTimeout = setTimeout(() => {
+      if (pusher.connection.state === 'connecting' && isMounted.current) {
+        setRtStatus('unavailable')
+      }
+    }, 10000)
+
+    pusher.connection.bind('connected', () => { 
+      clearTimeout(connTimeout)
+      if (isMounted.current) setRtStatus('connected')   
+    })
     pusher.connection.bind('unavailable',  () => { if (isMounted.current) setRtStatus('unavailable') })
     pusher.connection.bind('disconnected', () => { if (isMounted.current) setRtStatus('connecting')  })
+    pusher.connection.bind('failed',       () => { if (isMounted.current) setRtStatus('unavailable') })
 
     // Subscribe ke channel
     const channel = pusher.subscribe(CHANNEL_NAME)
