@@ -354,22 +354,6 @@ function cors(req, res) {
   return false;
 }
 
-// ── SSE clients ───────────────────────────────────────────────────────
-const sseClients = new Map();
-let sseCounter = 0;
-function broadcast(event, data) {
-  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  const dead = [];
-  for (const [id, r] of sseClients.entries()) {
-    try {
-      r.write(msg);
-    } catch {
-      dead.push(id);
-    }
-  }
-  dead.forEach((id) => sseClients.delete(id));
-}
-
 // ── DAY MAP ───────────────────────────────────────────────────────────
 const DAY_MAP = {
   0: "Minggu",
@@ -442,34 +426,6 @@ export default async function handler(req, res) {
           role: user.role,
         },
       });
-    }
-
-    // ── SSE ─────────────────────────────────────────────────────────────
-    if (url === "/api/sse" && meth === "GET") {
-      const user = verifyToken(req);
-      if (!user) return res.status(401).json({ error: "Unauthorized" });
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      res.flushHeaders();
-      const id = ++sseCounter;
-      sseClients.set(id, res);
-      res.write(
-        `event: connected\ndata: ${JSON.stringify({ clientId: id })}\n\n`,
-      );
-      const hb = setInterval(() => {
-        try {
-          res.write(": heartbeat\n\n");
-        } catch {
-          clearInterval(hb);
-        }
-      }, 25000);
-      req.on("close", () => {
-        clearInterval(hb);
-        sseClients.delete(id);
-      });
-      return;
     }
 
     // ── Users ────────────────────────────────────────────────────────────

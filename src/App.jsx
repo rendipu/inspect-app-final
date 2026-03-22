@@ -4,6 +4,8 @@ import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
 
+const isDeviceOnline = useOnline()
+
 import Sidebar       from './components/Sidebar'
 import TopBar        from './components/TopBar'
 import BottomNav     from './components/BottomNav'
@@ -109,12 +111,12 @@ if (publicMatch) {
 
   return (
     <div style={{ background:'var(--bg)', minHeight:'100vh' }}>
-      {!online && (
+      {!isDeviceOnline && (
         <div style={{ background:'var(--err)', color:'#fff', textAlign:'center', padding:'6px 16px', fontSize:12, fontWeight:700 }}>
           ⚠ Tidak ada koneksi — Mode Offline
         </div>
       )}
-      {showPwa && online && (
+      {showPwa && isDeviceOnline && (
         <PwaBanner
           onInstall={() => { alert('Buka di Chrome/Safari → menu → "Add to Home Screen" untuk install PWA.'); setShowPwa(false) }}
           onDismiss={() => setShowPwa(false)}
