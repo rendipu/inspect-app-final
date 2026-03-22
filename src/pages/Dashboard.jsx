@@ -210,7 +210,7 @@ const startCamera = useCallback(async (deviceId = null) => {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
-export default function Dashboard({ user, data, setPage, setSelUnit, syncing, lastSync }) {
+export default function Dashboard({ user, data, setPage, setSelUnit, syncing, lastSync, rtStatus }) {
   const { units, schedules, inspections } = data
   const [scan,       setScan]       = useState('')
   const [scanRes,    setScanRes]    = useState(null)
@@ -252,7 +252,7 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
             {new Date().toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
           </p>
         </div>
-        <LiveIndicator syncing={syncing} lastSync={lastSync} />
+        <LiveIndicator syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />
       </div>
 
       {/* Stat Cards */}

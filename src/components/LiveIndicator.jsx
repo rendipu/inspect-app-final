@@ -3,11 +3,12 @@ function fmtTime(d) {
 }
 
 export default function LiveIndicator({ syncing, lastSync, compact = false, rtStatus }) {
+
   const dot = rtStatus === 'connected'
-    ? { color: 'var(--ok)',  label: 'Live',        pulse: true  }
-    : rtStatus === 'connecting'
-    ? { color: 'var(--wn)',  label: 'Connecting',  pulse: false }
-    : { color: 'var(--err)', label: 'Offline RT',  pulse: false }
+  ? { color: 'var(--ok)',  label: 'Live',        pulse: true  }
+  : rtStatus === 'connecting'
+  ? { color: 'var(--wn)',  label: 'Connecting',  pulse: false }
+  : { color: 'var(--err)', label: 'Offline RT',  pulse: false }
 
   return (
     <span className="live-badge">
