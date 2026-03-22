@@ -61,9 +61,11 @@ export function usePolling(interval = 15000, enabled = true) {
     }
   }, [enabled])
 
-  // ── Setup Pusher ──────────────────────────────────────────────────
   const setupPusher = useCallback(() => {
-    if (!PUSHER_KEY || !enabled) return
+    if (!PUSHER_KEY || !enabled) {
+      if (isMounted.current) setRtStatus('unavailable')
+      return
+    }
 
     // Bersihkan koneksi lama
     if (pusherRef.current) {
