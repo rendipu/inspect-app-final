@@ -6,7 +6,7 @@ Pusher.logToConsole = true;
 
 const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY
 const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'mt1'
-const CHANNEL_NAME   = 'inspect-channel-prod' || 'inspect-channel'
+const CHANNEL_NAME   = 'inspect-channel'
 
 // Singleton Pusher di luar React — tidak terpengaruh StrictMode double-mount
 let globalPusher   = null
