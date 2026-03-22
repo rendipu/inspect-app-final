@@ -6,17 +6,9 @@ export default function LiveIndicator({ syncing, lastSync, compact = false, rtSt
 
   const dot = rtStatus === 'connected'
     ? { color: 'var(--ok)',  label: 'Live',        pulse: true  }
-    : rtStatus === 'unavailable'
-    ? { color: 'var(--err)', label: 'Offline RT',  pulse: false }
-    : { color: 'var(--wn)',  label: 'Connecting',  pulse: false }
-
-  if (compact) return (
-    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-      {syncing
-        ? <span className="spin" style={{ fontSize:12, color:'var(--t3)' }}>↻</span>
-        : <span className="live-dot pulse" style={{ background: dot.color }} />}
-    </span>
-  )
+    : rtStatus === 'connecting'
+    ? { color: 'var(--wn)',  label: 'Connecting',  pulse: false }
+    : { color: 'var(--err)', label: 'Offline RT',  pulse: false }
 
   return (
     <span className="live-badge">

@@ -1,6 +1,6 @@
 import LiveIndicator from './LiveIndicator'
 
-export default function TopBar({ user, page, pageTitle, syncing, lastSync, online, onLogout }) {
+export default function TopBar({ user, page, pageTitle, syncing, lastSync, online, onLogout, rtStatus }) {
   const PAGE_TITLES = {
     dashboard: 'Dashboard',
     inspection: 'Form Inspeksi',
@@ -34,7 +34,7 @@ export default function TopBar({ user, page, pageTitle, syncing, lastSync, onlin
             Offline
           </span>
         )}
-        <LiveIndicator syncing={syncing} lastSync={lastSync} compact />
+        <LiveIndicator syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} compact />
         <button
           onClick={onLogout}
           className="touch-target"

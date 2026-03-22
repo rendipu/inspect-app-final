@@ -21,6 +21,8 @@ export function usePolling(interval = 15000, enabled = true) {
   const pollingRef = useRef(null)
   const pusherRef  = useRef(null)
   const channelRef = useRef(null)
+  // Simpan fetchAll di ref agar setupPusher tidak perlu fetchAll sebagai dependency
+  const fetchAllRef = useRef(null)
 
   useEffect(() => {
     isMounted.current = true
@@ -65,26 +67,25 @@ export function usePolling(interval = 15000, enabled = true) {
     }
   }, [enabled])
 
-  const setupPusher = useCallback(() => {
-    if (!PUSHER_KEY || !enabled) {
-      if (isMounted.current) setRtStatus('unavailable')
+  // Selalu update ref ke versi terbaru fetchAll tanpa memicu re-render
+  fetchAllRef.current = fetchAll
+
+  // ── Setup Pusher — hanya jalan SEKALI saat mount ──────────────────
+  useEffect(() => {
+    if (!enabled) return
+
+    if (!PUSHER_KEY) {
+      setRtStatus('unavailable')
       return
     }
 
-    // Bersihkan koneksi lama
-    if (pusherRef.current) {
-      if (pusherRef.current.connection) pusherRef.current.connection.unbind_all()
-      pusherRef.current.disconnect()
-      pusherRef.current = null
-    }
-
     const pusher = new Pusher(PUSHER_KEY, {
-      cluster:       PUSHER_CLUSTER,
-      forceTLS:      true,
+      cluster:  PUSHER_CLUSTER,
+      forceTLS: true,
     })
     pusherRef.current = pusher
 
-    // Timeout jika koneksi nyangkut lebih dari 10 detik (misal diblokir provider HP)
+    // Timeout jika koneksi nyangkut lebih dari 10 detik
     const connTimeout = setTimeout(() => {
       if (pusher.connection.state === 'connecting' && isMounted.current) {
         setRtStatus('unavailable')
@@ -92,57 +93,64 @@ export function usePolling(interval = 15000, enabled = true) {
     }, 10000)
 
     pusher.connection.bind('state_change', (states) => {
-      if (!isMounted.current) return;
-      const s = states.current; // 'connecting', 'connected', 'unavailable', 'failed', 'disconnected'
-      console.log('[RT Status Updated]', s);
+      if (!isMounted.current) return
+      const s = states.current
+      console.log('[RT Status Updated]', s)
       if (s === 'connected') {
         clearTimeout(connTimeout)
         setRtStatus('connected')
       } else if (s === 'unavailable' || s === 'failed') {
         setRtStatus('unavailable')
-      } else if (s === 'connecting') {
-        setRtStatus('connecting')
-      } else if (s === 'disconnected') {
+      } else if (s === 'connecting' || s === 'disconnected') {
         setRtStatus('connecting')
       }
-    });
+    })
 
-    // Subscribe ke channel
+    // Cek jika Pusher sudah connected sebelum listener terpasang (race condition)
+    if (pusher.connection.state === 'connected') {
+      clearTimeout(connTimeout)
+      setRtStatus('connected')
+    }
+
     const channel = pusher.subscribe(CHANNEL_NAME)
     channelRef.current = channel
 
-    // Event handlers — refetch saat ada perubahan
-    const onUpdate = () => fetchAll(true)
-    
-    // Mencegah warning "No callbacks on... pusher:subscription_succeeded" di console
     channel.bind('pusher:subscription_succeeded', () => {
       console.log('[Pusher] Subscription succeeded for', CHANNEL_NAME)
     })
 
+    // Gunakan ref agar event handler tidak perlu di-rebind saat fetchAll berubah
+    const onUpdate = () => fetchAllRef.current?.(true)
     channel.bind('inspection_created',   onUpdate)
     channel.bind('work_status_updated',  onUpdate)
     channel.bind('order_status_updated', onUpdate)
     channel.bind('hm_updated',           onUpdate)
-  }, [enabled, fetchAll])
 
-  // ── Setup polling + Pusher ────────────────────────────────────────
+    return () => {
+      clearTimeout(connTimeout)
+      if (channelRef.current) channelRef.current.unbind_all()
+      if (pusherRef.current) {
+        pusherRef.current.connection.unbind_all()
+        pusherRef.current.disconnect()
+        pusherRef.current = null
+      }
+    }
+  }, [enabled]) // ← hanya enabled, tidak bergantung pada fetchAll/setupPusher
+
+  // ── Setup polling + visibilitychange ─────────────────────────────
   useEffect(() => {
     if (!enabled) return
 
     // Initial fetch
     fetchAll(false)
 
-    // Setup Pusher untuk real-time
-    setupPusher()
-
-    // Polling sebagai fallback jika Pusher tidak tersedia
-    pollingRef.current = setInterval(() => fetchAll(true), interval)
+    // Polling fallback
+    pollingRef.current = setInterval(() => fetchAllRef.current?.(true), interval)
 
     // Refetch saat tab aktif kembali
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        fetchAll(true)
-        // Paksa Pusher untuk reconnect jika layarnya baru nyala dari sleep di HP
+        fetchAllRef.current?.(true)
         if (pusherRef.current && pusherRef.current.connection.state !== 'connected') {
           pusherRef.current.connect()
         }
@@ -153,10 +161,8 @@ export function usePolling(interval = 15000, enabled = true) {
     return () => {
       clearInterval(pollingRef.current)
       document.removeEventListener('visibilitychange', onVisible)
-      if (channelRef.current) channelRef.current.unbind_all()
-      if (pusherRef.current)  pusherRef.current.disconnect()
     }
-  }, [enabled, fetchAll, setupPusher, interval])
+  }, [enabled, interval]) // ← fetchAll dihapus dari deps, pakai ref
 
   const mutate = useCallback((updater) => {
     setData(prev => {
@@ -165,7 +171,7 @@ export function usePolling(interval = 15000, enabled = true) {
     })
   }, [])
 
-  const refetch = useCallback(() => fetchAll(true), [fetchAll])
+  const refetch = useCallback(() => fetchAllRef.current?.(true), [])
 
   return { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus }
 }

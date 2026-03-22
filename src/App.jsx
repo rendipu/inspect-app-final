@@ -118,7 +118,6 @@ if (publicMatch) {
       <button className="btn-y" style={{ marginTop:8 }} onClick={refetch}>Coba Lagi</button>
     </div>
   )
-
   return (
     <div style={{ background:'var(--bg)', minHeight:'100vh' }}>
       {!isDeviceOnline && (
@@ -135,7 +134,7 @@ if (publicMatch) {
 
       {isMob ? (
         <>
-          <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} />
+          <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} rtStatus={rtStatus} />
           <main className="main-with-bottom-nav" style={{ padding:'14px 14px 0' }}>
             <Suspense fallback={<PageLoader />}>
               {pageMap[page] ?? pageMap.dashboard}
