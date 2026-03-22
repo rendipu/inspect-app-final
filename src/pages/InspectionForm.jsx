@@ -326,8 +326,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
-                <label className="lbl">Mekanik Pelaksana *</label>
-                <MultiUserInput users={mechs} selected={selMechs} onChange={setSelMechs} placeholder="Ketik nama mekanik..." />
+                <label className="lbl" htmlFor="mekanik-pelaksana">Mekanik Pelaksana *</label>
+                <MultiUserInput inputId="mekanik-pelaksana" users={mechs} selected={selMechs} onChange={setSelMechs} placeholder="Ketik nama mekanik..." />
               </div>
             </>
           )}

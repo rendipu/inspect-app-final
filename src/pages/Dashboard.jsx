@@ -319,6 +319,9 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
 
         <div style={{ display:'flex', gap:8 }}>
           <input
+            id="scan-input"
+            name="scan"
+            aria-label="No. Unit atau kode QR..."
             value={scan}
             onChange={e => { setScan(e.target.value); setScanRes(null) }}
             onKeyDown={e => e.key === 'Enter' && findUnit(scan)}
