@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import Pusher from 'pusher-js'
 import { api } from '../lib/api'
+
+const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY
+const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'ap1'
+const CHANNEL_NAME   = 'inspect-channel'
 
 export function usePolling(interval = 15000, enabled = true) {
   const [data,     setData]     = useState(null)
@@ -8,15 +13,19 @@ export function usePolling(interval = 15000, enabled = true) {
   const [syncing,  setSyncing]  = useState(false)
   const [lastSync, setLastSync] = useState(new Date())
   const [online,   setOnline]   = useState(true)
+  const [rtStatus, setRtStatus] = useState('connecting') // connecting | connected | unavailable
 
   const isMounted  = useRef(true)
   const pollingRef = useRef(null)
+  const pusherRef  = useRef(null)
+  const channelRef = useRef(null)
 
   useEffect(() => {
     isMounted.current = true
     return () => { isMounted.current = false }
   }, [])
 
+  // ── Fetch semua data ──────────────────────────────────────────────
   const fetchAll = useCallback(async (silent = false) => {
     if (!enabled) return
     try {
@@ -52,13 +61,54 @@ export function usePolling(interval = 15000, enabled = true) {
     }
   }, [enabled])
 
+  // ── Setup Pusher ──────────────────────────────────────────────────
+  const setupPusher = useCallback(() => {
+    if (!PUSHER_KEY || !enabled) return
+
+    // Bersihkan koneksi lama
+    if (pusherRef.current) {
+      pusherRef.current.disconnect()
+      pusherRef.current = null
+    }
+
+    const pusher = new Pusher(PUSHER_KEY, {
+      cluster:       PUSHER_CLUSTER,
+      forceTLS:      true,
+      enabledTransports: ['ws', 'wss'],
+    })
+    pusherRef.current = pusher
+
+    // Status koneksi
+    pusher.connection.bind('connected',    () => { if (isMounted.current) setRtStatus('connected')   })
+    pusher.connection.bind('unavailable',  () => { if (isMounted.current) setRtStatus('unavailable') })
+    pusher.connection.bind('disconnected', () => { if (isMounted.current) setRtStatus('connecting')  })
+
+    // Subscribe ke channel
+    const channel = pusher.subscribe(CHANNEL_NAME)
+    channelRef.current = channel
+
+    // Event handlers — refetch saat ada perubahan
+    const onUpdate = () => fetchAll(true)
+    channel.bind('inspection_created',   onUpdate)
+    channel.bind('work_status_updated',  onUpdate)
+    channel.bind('order_status_updated', onUpdate)
+    channel.bind('hm_updated',           onUpdate)
+  }, [enabled, fetchAll])
+
+  // ── Setup polling + Pusher ────────────────────────────────────────
   useEffect(() => {
     if (!enabled) return
 
+    // Initial fetch
     fetchAll(false)
 
+    // Setup Pusher untuk real-time
+    setupPusher()
+
+    // Polling sebagai fallback jika Pusher tidak tersedia
     pollingRef.current = setInterval(() => fetchAll(true), interval)
 
+    // Refetch saat tab aktif kembali
     const onVisible = () => {
       if (document.visibilityState === 'visible') fetchAll(true)
     }
@@ -67,8 +117,10 @@ export function usePolling(interval = 15000, enabled = true) {
     return () => {
       clearInterval(pollingRef.current)
       document.removeEventListener('visibilitychange', onVisible)
+      if (channelRef.current) channelRef.current.unbind_all()
+      if (pusherRef.current)  pusherRef.current.disconnect()
     }
-  }, [enabled, fetchAll, interval])
+  }, [enabled, fetchAll, setupPusher, interval])
 
   const mutate = useCallback((updater) => {
     setData(prev => {
@@ -79,5 +131,5 @@ export function usePolling(interval = 15000, enabled = true) {
 
   const refetch = useCallback(() => fetchAll(true), [fetchAll])
 
-  return { data, loading, error, syncing, lastSync, mutate, refetch, online }
+  return { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus }
 }

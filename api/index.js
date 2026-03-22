@@ -2,6 +2,33 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import Pusher from 'pusher'
+
+// Inisialisasi Pusher (lazy — hanya dibuat saat dibutuhkan)
+let pusherInstance = null
+function getPusher() {
+  if (!pusherInstance && process.env.PUSHER_APP_ID) {
+    pusherInstance = new Pusher({
+      appId:   process.env.PUSHER_APP_ID,
+      key:     process.env.PUSHER_KEY,
+      secret:  process.env.PUSHER_SECRET,
+      cluster: process.env.PUSHER_CLUSTER,
+      useTLS:  true,
+    })
+  }
+  return pusherInstance
+}
+
+// Helper broadcast — tidak throw jika Pusher belum dikonfigurasi
+async function broadcast(event, data) {
+  try {
+    const pusher = getPusher()
+    if (!pusher) return
+    await pusher.trigger('inspect-channel', event, data)
+  } catch (e) {
+    console.error('[Pusher broadcast error]', e.message)
+  }
+}
 
 if (process.env.NODE_ENV !== "production") {
   const { default: dotenv } = await import("dotenv");

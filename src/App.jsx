@@ -56,8 +56,7 @@ if (publicMatch) {
   const [selUnit, setSelUnit] = useState(null)
   const [showPwa, setShowPwa] = useState(true)
 
-  const { data, loading, error, syncing, lastSync, mutate, refetch } = usePolling(15000, !!user)
-  const online = useOnline()
+  const { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus } = usePolling(15000, !!user)
   const width  = useWindowWidth()
   const isMob  = width < 681
 
@@ -85,7 +84,8 @@ if (publicMatch) {
 
   // HARUS sebelum early return (Rules of Hooks)
   const pageMap = useMemo(() => ({
-    dashboard:  <Dashboard      user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit} mutate={mutate} syncing={syncing} lastSync={lastSync} />,
+    dashboard: <Dashboard user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit}
+              mutate={mutate} syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />,
     inspection: <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
     history:    <HistoryPage    data={safeData} user={user} refetch={refetch} />,
     analytics:  <Analytics      data={safeData} syncing={syncing} />,
@@ -136,7 +136,7 @@ if (publicMatch) {
           <Sidebar user={user} page={page} setPage={setPage} onLogout={handleLogout} isMob={false} />
           <main style={{ flex:1, minWidth:0, padding:'24px 28px' }}>
             <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-              <LiveIndicator syncing={syncing} lastSync={lastSync} />
+              <LiveIndicator syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />
             </div>
             <Suspense fallback={<PageLoader />}>
               {pageMap[page] ?? pageMap.dashboard}
