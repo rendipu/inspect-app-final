@@ -693,7 +693,7 @@ export default async function handler(req, res) {
       if (meth === "GET") {
         const { mode, tanggal } = req.query;
         if (mode === "recurring") {
-          const scheds = await RecurringSchedule.find().sort({ id: 1 }).lean();
+          const scheds = await RecurringSchedule.find({ aktif: true }).sort({ id: 1 }).lean();
           const unitIds = scheds.map((s) => s.unit_id);
           const units = await Unit.find({ id: { $in: unitIds } }).lean();
           const uMap = Object.fromEntries(units.map((u) => [u.id, u]));
