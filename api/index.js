@@ -623,21 +623,17 @@ export default async function handler(req, res) {
       if (meth === "GET") {
         const { unit_tipe, brand } = req.query;
         let filter = { aktif: true };
-        if (unit_tipe && brand) {
-          filter.$or = [
-            { unit_tipe: { $size: 0 } },
-            { unit_tipe: null },
-            { unit_tipe: unit_tipe, brand: { $size: 0 } },
-            { unit_tipe: unit_tipe, brand: null },
-            { unit_tipe: unit_tipe, brand: brand },
-          ];
-        } else if (unit_tipe) {
-          filter.$or = [
-            { unit_tipe: { $size: 0 } },
-            { unit_tipe: null },
-            { unit_tipe: unit_tipe, brand: { $size: 0 } },
-            { unit_tipe: unit_tipe, brand: null },
-          ];
+        if (unit_tipe || brand) {
+          const typeCond = unit_tipe ? { $or: [{ unit_tipe: { $size: 0 } }, { unit_tipe: null }, { unit_tipe }] } : {};
+          const brandCond = brand ? { $or: [{ brand: { $size: 0 } }, { brand: null }, { brand }] } : {};
+          
+          if (unit_tipe && brand) {
+            filter.$and = [typeCond, brandCond];
+          } else if (unit_tipe) {
+            Object.assign(filter, typeCond);
+          } else if (brand) {
+            Object.assign(filter, brandCond);
+          }
         }
         const qs = await Question.find(filter)
           .sort({ kategori: 1, urutan: 1 })
@@ -701,9 +697,17 @@ export default async function handler(req, res) {
             scheds.map((s) => ({ ...s, unit: uMap[s.unit_id] || null })),
           );
         }
-        const date = tanggal ? new Date(tanggal) : new Date();
-        const dayName = DAY_MAP[date.getDay()];
-        const dateStr = date.toISOString().split("T")[0];
+        let dateStr;
+        let dayName;
+        if (tanggal) {
+          const d = new Date(tanggal);
+          dateStr = d.toISOString().split("T")[0];
+          dayName = DAY_MAP[d.getUTCDay()];
+        } else {
+          const d = new Date(Date.now() + 7 * 3600 * 1000);
+          dateStr = d.toISOString().split("T")[0];
+          dayName = DAY_MAP[d.getUTCDay()];
+        }
         const recurring = await RecurringSchedule.find({
           aktif: true,
           hari: dayName,
@@ -836,8 +840,13 @@ export default async function handler(req, res) {
           !answers?.length
         )
           return res.status(400).json({ error: "Data tidak lengkap" });
-        const inspDate = tanggal ? new Date(tanggal) : new Date();
-        const dateStr = inspDate.toISOString().split("T")[0];
+        let dateStr;
+        if (tanggal) {
+          dateStr = new Date(tanggal).toISOString().split("T")[0];
+        } else {
+          const d = new Date(Date.now() + 7 * 3600 * 1000);
+          dateStr = d.toISOString().split("T")[0];
+        }
         const startOfDay = new Date(dateStr + "T00:00:00.000Z");
         const endOfDay = new Date(dateStr + "T23:59:59.999Z");
         const already = await Inspection.findOne({
