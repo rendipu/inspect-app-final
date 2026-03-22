@@ -24,7 +24,7 @@ async function broadcast(event, data) {
   try {
     const pusher = getPusher()
     if (!pusher) return
-    await pusher.trigger('inspect-channel', event, data)
+    await pusher.trigger('inspect-channel-prod', event, data)
   } catch (e) {
     console.error('[Pusher broadcast error]', e.message)
   }
