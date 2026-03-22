@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
@@ -143,6 +144,7 @@ if (publicMatch) {
           </main>
         </div>
       )}
+      <SpeedInsights />
     </div>
   )
 }
