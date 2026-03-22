@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Pusher from 'pusher-js'
 import { api } from '../lib/api'
 
+Pusher.logToConsole = true;
+
 const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY
 const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'mt1'
 const CHANNEL_NAME   = 'inspect-channel-prod'
@@ -71,6 +73,7 @@ export function usePolling(interval = 15000, enabled = true) {
 
     // Bersihkan koneksi lama
     if (pusherRef.current) {
+      if (pusherRef.current.connection) pusherRef.current.connection.unbind_all()
       pusherRef.current.disconnect()
       pusherRef.current = null
     }
@@ -88,13 +91,21 @@ export function usePolling(interval = 15000, enabled = true) {
       }
     }, 10000)
 
-    pusher.connection.bind('connected', () => { 
-      clearTimeout(connTimeout)
-      if (isMounted.current) setRtStatus('connected')   
-    })
-    pusher.connection.bind('unavailable',  () => { if (isMounted.current) setRtStatus('unavailable') })
-    pusher.connection.bind('disconnected', () => { if (isMounted.current) setRtStatus('connecting')  })
-    pusher.connection.bind('failed',       () => { if (isMounted.current) setRtStatus('unavailable') })
+    pusher.connection.bind('state_change', (states) => {
+      if (!isMounted.current) return;
+      const s = states.current; // 'connecting', 'connected', 'unavailable', 'failed', 'disconnected'
+      console.log('[RT Status Updated]', s);
+      if (s === 'connected') {
+        clearTimeout(connTimeout)
+        setRtStatus('connected')
+      } else if (s === 'unavailable' || s === 'failed') {
+        setRtStatus('unavailable')
+      } else if (s === 'connecting') {
+        setRtStatus('connecting')
+      } else if (s === 'disconnected') {
+        setRtStatus('connecting')
+      }
+    });
 
     // Subscribe ke channel
     const channel = pusher.subscribe(CHANNEL_NAME)
@@ -102,6 +113,12 @@ export function usePolling(interval = 15000, enabled = true) {
 
     // Event handlers — refetch saat ada perubahan
     const onUpdate = () => fetchAll(true)
+    
+    // Mencegah warning "No callbacks on... pusher:subscription_succeeded" di console
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('[Pusher] Subscription succeeded for', CHANNEL_NAME)
+    })
+
     channel.bind('inspection_created',   onUpdate)
     channel.bind('work_status_updated',  onUpdate)
     channel.bind('order_status_updated', onUpdate)
