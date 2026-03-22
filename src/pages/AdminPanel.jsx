@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState,useEffect, useRef } from 'react'
 import Badge from '../components/Badge'
 import { api } from '../lib/api'
 
@@ -132,6 +132,7 @@ function UnitsTab({ units, refetch }) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ nomor_unit: '', tipe: '', brand: '', model: '', tahun: '', hm: '' })
   const [saving, setSaving] = useState(false)
+  const [qrUnit, setQrUnit] = useState(null)
 
   const saveNew = async () => {
     if (!form.nomor_unit || !form.tipe || !form.brand) { alert('No. Unit, Tipe, Brand wajib!'); return }
@@ -214,6 +215,14 @@ function UnitsTab({ units, refetch }) {
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn-g btn-sm" style={{ marginRight: 6 }} onClick={() => setEditRow({ ...u })}>Edit</button>
                         <button className="btn-err btn-sm" onClick={() => remove(u.id)}>Hapus</button>
+                        <button
+        className="btn-sm"
+        onClick={() => setQrUnit(u)}
+        style={{ background: 'var(--purbg)', color: 'var(--pur)', border: '1.5px solid var(--purbd)', fontWeight: 700, fontSize: 11 }}
+        title="Generate QR Code"
+      >
+        QR
+      </button>
                       </td>
                     </>
                   )}
@@ -226,6 +235,7 @@ function UnitsTab({ units, refetch }) {
           </table>
         </div>
       </div>
+      {qrUnit && <QRModal unit={qrUnit} onClose={() => setQrUnit(null)} />}
     </div>
   )
 }
@@ -485,6 +495,139 @@ function SchedulesTab({ units, recurring, refetch }) {
         {recurring.length === 0 && (
           <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>Belum ada jadwal berulang</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Komponen QR Code Modal ────────────────────────────────────────────
+function QRModal({ unit, onClose }) {
+  const canvasRef = useRef(null)
+  const url = `${window.location.origin}/u/${encodeURIComponent(unit.qr_code || unit.nomor_unit)}`
+
+  useEffect(() => {
+    // Generate QR menggunakan library qrcode (CDN)
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+    script.onload = () => {
+      if (canvasRef.current) {
+        canvasRef.current.innerHTML = ''
+        new window.QRCode(canvasRef.current, {
+          text: url,
+          width: 220,
+          height: 220,
+          colorDark: '#1c1917',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.H,
+        })
+      }
+    }
+    document.head.appendChild(script)
+    return () => document.head.removeChild(script)
+  }, [url])
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current?.querySelector('canvas')
+    if (!canvas) return
+
+    // Buat canvas baru dengan padding dan label
+    const c    = document.createElement('canvas')
+    const ctx  = c.getContext('2d')
+    const pad  = 24
+    const lblH = 60
+    c.width  = 220 + pad * 2
+    c.height = 220 + pad * 2 + lblH
+
+    // Background putih
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, c.width, c.height)
+
+    // QR code
+    ctx.drawImage(canvas, pad, pad, 220, 220)
+
+    // Label unit
+    ctx.fillStyle = '#1c1917'
+    ctx.font = 'bold 16px monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText(unit.nomor_unit, c.width / 2, 220 + pad + 24)
+
+    ctx.fillStyle = '#78716c'
+    ctx.font = '12px sans-serif'
+    ctx.fillText(`${unit.brand} ${unit.tipe}`, c.width / 2, 220 + pad + 44)
+
+    // Download
+    const link = document.createElement('a')
+    link.download = `QR-${unit.nomor_unit}.png`
+    link.href = c.toDataURL('image/png')
+    link.click()
+  }
+
+  const handlePrint = () => {
+    const canvas = canvasRef.current?.querySelector('canvas')
+    if (!canvas) return
+    const win = window.open('', '_blank')
+    win.document.write(`
+      <html><head><title>QR ${unit.nomor_unit}</title>
+      <style>
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; }
+        img { width: 220px; height: 220px; }
+        h2 { font-size: 18px; margin: 12px 0 4px; font-family: monospace; }
+        p { font-size: 13px; color: #666; margin: 0 0 8px; }
+        small { font-size: 10px; color: #999; word-break: break-all; max-width: 240px; text-align: center; }
+        @media print { body { padding: 20px; } }
+      </style></head>
+      <body>
+        <img src="${canvas.toDataURL()}" />
+        <h2>${unit.nomor_unit}</h2>
+        <p>${unit.brand} ${unit.tipe} ${unit.model ? `· ${unit.model}` : ''}</p>
+        <small>${url}</small>
+        <script>window.onload = () => window.print()<\/script>
+      </body></html>
+    `)
+    win.document.close()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--sf)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 340, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t)' }}>QR Code Unit</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)' }}>Scan untuk lihat history</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--t3)', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* Unit info */}
+        <div style={{ background: 'var(--sfy)', border: '1.5px solid var(--wnbd)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, textAlign: 'left' }}>
+          <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--pd)' }}>{unit.nomor_unit}</div>
+          <div style={{ fontSize: 12, color: 'var(--t3)' }}>{unit.brand} {unit.tipe} {unit.model && `· ${unit.model}`}</div>
+        </div>
+
+        {/* QR Code */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{ background: '#fff', padding: 12, borderRadius: 12, border: '2px solid var(--bd)', display: 'inline-block' }}>
+            <div ref={canvasRef} />
+          </div>
+        </div>
+
+        {/* URL */}
+        <div style={{ background: 'var(--bd2)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 11, color: 'var(--t3)', wordBreak: 'break-all', textAlign: 'left' }}>
+          🔗 {url}
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handlePrint}
+            style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1.5px solid var(--bd)', background: 'transparent', color: 'var(--t)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            🖨 Print
+          </button>
+          <button onClick={handleDownload}
+            style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: 'var(--p)', color: '#1c1917', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            ⬇ Download PNG
+          </button>
+        </div>
       </div>
     </div>
   )

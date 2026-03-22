@@ -23,6 +23,7 @@ const Approvals      = lazy(() => import('./pages/Approvals'))
 const AdminPanel     = lazy(() => import('./pages/AdminPanel'))
 const HourMeter      = lazy(() => import('./pages/HourMeter'))
 const StockPage      = lazy(() => import('./pages/stockPage'))
+const PublicUnitPage = lazy(() => import('./pages/PublicUnitPage'))
 
 function PageLoader() {
   return (
@@ -43,6 +44,10 @@ function LoadingScreen() {
 }
 
 export default function App() {
+  const publicMatch = window.location.pathname.match(/^\/u\/(.+)$/)
+if (publicMatch) {
+  return <PublicUnitPage qrCode={decodeURIComponent(publicMatch[1])} />
+}
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('inspect_user')) } catch { return null }
   })
