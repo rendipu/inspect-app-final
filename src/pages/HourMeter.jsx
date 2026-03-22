@@ -31,11 +31,11 @@ export default function HourMeter({ data, user, refetch }) {
     (filterBrand === 'all' || u.brand === filterBrand)
   )
 
-  const selectedUnit = units.find(u => u._id === parseInt(unitId))
+  const selectedUnit = units.find(u => u.id === parseInt(unitId))
 
   // Reset HM input saat ganti unit
   const handleUnitChange = (e) => {
-    const u = units.find(x => x._id === parseInt(e.target.value))
+    const u = units.find(x => x.id === parseInt(e.target.value))
     setUnitId(e.target.value)
     setHmAfter(u ? u.hm.toString() : '')
     setError('')
@@ -124,7 +124,7 @@ export default function HourMeter({ data, user, refetch }) {
           <select id="unit-id" name="unitId" value={unitId} onChange={handleUnitChange} style={{ width: '100%' }}>
             <option value="">-- Pilih Unit --</option>
             {filteredUnits.map(u => (
-              <option key={u._id} value={u._id}>
+              <option key={u.id} value={u.id}>
                 {u.nomor_unit} — {u.brand} {u.tipe} {u.model ? `(${u.model})` : ''}
               </option>
             ))}
@@ -256,22 +256,22 @@ export default function HourMeter({ data, user, refetch }) {
               .sort((a, b) => a.nomor_unit.localeCompare(b.nomor_unit))
               .map(u => (
                 <div
-                  key={u._id}
+                  key={u.id}
                   onClick={() => {
-                    setUnitId(String(u._id))
+                    setUnitId(String(u.id))
                     setHmAfter(u.hm.toString())
                     setError('')
                     setSuccess('')
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
-                  style={{ background: unitId === String(u._id) ? 'var(--sfy)' : 'var(--bd2)', border: `1.5px solid ${unitId === String(u._id) ? 'var(--p)' : 'var(--bd)'}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all .15s' }}
+                  style={{ background: unitId === String(u.id) ? 'var(--sfy)' : 'var(--bd2)', border: `1.5px solid ${unitId === String(u.id) ? 'var(--p)' : 'var(--bd)'}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all .15s' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <div>
                       <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--pd)' }}>{u.nomor_unit}</div>
                       <div style={{ fontSize: 11, color: 'var(--t3)' }}>{u.brand} {u.tipe}</div>
                     </div>
-                    {unitId === String(u._id) && (
+                    {unitId === String(u.id) && (
                       <span style={{ background: 'var(--p)', color: '#1c1917', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '.04em' }}>
                         Dipilih
                       </span>
