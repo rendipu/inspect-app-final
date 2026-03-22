@@ -76,7 +76,6 @@ export function usePolling(interval = 15000, enabled = true) {
     const pusher = new Pusher(PUSHER_KEY, {
       cluster:       PUSHER_CLUSTER,
       forceTLS:      true,
-      enabledTransports: ['ws', 'wss'],
     })
     pusherRef.current = pusher
 
@@ -112,7 +111,13 @@ export function usePolling(interval = 15000, enabled = true) {
 
     // Refetch saat tab aktif kembali
     const onVisible = () => {
-      if (document.visibilityState === 'visible') fetchAll(true)
+      if (document.visibilityState === 'visible') {
+        fetchAll(true)
+        // Paksa Pusher untuk reconnect jika layarnya baru nyala dari sleep di HP
+        if (pusherRef.current && pusherRef.current.connection.state !== 'connected') {
+          pusherRef.current.connect()
+        }
+      }
     }
     document.addEventListener('visibilitychange', onVisible)
 
