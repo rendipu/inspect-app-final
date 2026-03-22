@@ -13,7 +13,7 @@ function StockStatus({ jumlah, minimum }) {
   if (jumlah === 0) return (
     <span className="tag" style={{ background:'var(--errbg)', border:'1px solid var(--errbd)', color:'var(--err)' }}>Habis</span>
   )
-  if (jumlah > 0 && jumlah <= 1) return (
+  if (jumlah > 0 && jumlah <= (minimum || 1)) return (
     <span className="tag" style={{ background:'var(--wnbg)', border:'1px solid var(--wnbd)', color:'var(--wn)' }}>⚠ Stok Rendah</span>
   )
   return (
@@ -103,7 +103,7 @@ async function parseExcelToRows(file) {
             jumlah_stock:         unrestricted,
             satuan:               SATUAN_LIST.includes(satuan) ? satuan : 'pcs',
             location_storage:     storageRaw || '',   // akan diisi default 'SWI' di UI
-            minimum_stock:        2,
+            minimum_stock:        1,
             harga_satuan:         '',
             keterangan:           '',
             _status:              'pending',   // pending | ok | skip | error
@@ -197,7 +197,7 @@ function ImportExcelModal({ onClose, onDone }) {
           jumlah_stock:         r.jumlah_stock,
           satuan:               r.satuan,
           location_storage:     r.location_storage,
-          minimum_stock:        r.minimum_stock || 2,
+          minimum_stock:        r.minimum_stock || 1,
           harga_satuan:         r.harga_satuan || undefined,
           keterangan:           r.keterangan || '',
         })
@@ -714,7 +714,7 @@ export default function StockPage({ user }) {
   // Ketik '7867' cocok '78675765001', ketik '001' cocok dari belakang
   const filtered = stocks.filter(s => {
     if (filterSatuan !== 'all' && s.satuan !== filterSatuan) return false
-    if (filterLow && !(s.jumlah_stock <= s.minimum_stock)) return false
+    if (filterLow && !(s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1))) return false
     if (!search.trim()) return true
     const q = search.trim().toLowerCase()
     return (
@@ -726,7 +726,7 @@ export default function StockPage({ user }) {
   })
 
   const totalItems = stocks.length
-  const lowItems   = stocks.filter(s => s.jumlah_stock <2 && s.jumlah_stock > 0).length
+  const lowItems   = stocks.filter(s => s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1)).length
   const emptyItems = stocks.filter(s => s.jumlah_stock === 0).length
   const totalNilai = stocks.reduce((sum, s) => sum + (s.jumlah_stock * (s.harga_satuan || 0)), 0)
 
@@ -885,7 +885,7 @@ export default function StockPage({ user }) {
               <tbody>
                 {filtered.map(s => {
                   const lastLog = s.stock_logs?.[0]
-                  const isLow   = s.jumlah_stock > 0 && s.jumlah_stock <= s.minimum_stock
+                  const isLow   = s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1)
                   const isEmpty = s.jumlah_stock === 0
 
                   return (
@@ -907,7 +907,7 @@ export default function StockPage({ user }) {
                         </div>
                       </td>
                       <td style={{ textAlign:'center' }}>
-                        <span className="mono" style={{ color:'var(--t3)' }}>{s.minimum_stock} {s.satuan}</span>
+                        <span className="mono" style={{ color:'var(--t3)' }}>1 {s.satuan}</span>
                       </td>
                       <td>
                         {s.location_storage
