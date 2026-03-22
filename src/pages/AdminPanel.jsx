@@ -455,16 +455,31 @@ function QuestionsTab({ questions, refetch }) {
 
 // ─── Schedules Tab ────────────────────────────────────────────────────────────
 function SchedulesTab({ units, recurring, refetch }) {
-  const [form,   setForm]   = useState({ unit_id:'', hari:[] })
-  const [saving, setSaving] = useState(false)
+  const [form,    setForm]    = useState({ unit_id: '', hari: [] })
+  const [editRow, setEditRow] = useState(null) // ← state edit
+  const [saving,  setSaving]  = useState(false)
 
-  const toggleHari = h => setForm(v => ({ ...v, hari: v.hari.includes(h) ? v.hari.filter(x => x !== h) : [...v.hari, h] }))
+  const toggleHari = (h, target = form, setTarget = setForm) =>
+    setTarget(v => ({ ...v, hari: v.hari.includes(h) ? v.hari.filter(x => x !== h) : [...v.hari, h] }))
 
   const save = async () => {
     if (!form.unit_id || form.hari.length === 0) { alert('Pilih unit dan minimal 1 hari!'); return }
     setSaving(true)
-    try { await api.saveRecurringSchedule({ unit_id: parseInt(form.unit_id), hari: form.hari }); await refetch(); setForm({ unit_id:'', hari:[] }) }
-    catch (e) { alert(e.message) } finally { setSaving(false) }
+    try {
+      await api.saveRecurringSchedule({ unit_id: parseInt(form.unit_id), hari: form.hari })
+      await refetch()
+      setForm({ unit_id: '', hari: [] })
+    } catch (e) { alert(e.message) } finally { setSaving(false) }
+  }
+
+  const saveEdit = async () => {
+    if (!editRow.hari.length) { alert('Pilih minimal 1 hari!'); return }
+    setSaving(true)
+    try {
+      await api.updateRecurringSchedule(editRow.id, { hari: editRow.hari, aktif: editRow.aktif })
+      await refetch()
+      setEditRow(null)
+    } catch (e) { alert(e.message) } finally { setSaving(false) }
   }
 
   const remove = async (id) => {
@@ -480,50 +495,125 @@ function SchedulesTab({ units, recurring, refetch }) {
 
   return (
     <div>
-      <div className="card" style={{ marginBottom:12, background:'var(--sfy)' }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--pd)', marginBottom:10 }}>Tambah Jadwal Berulang</div>
-        <div style={{ marginBottom:10 }}>
+      {/* ── Form tambah jadwal baru ── */}
+      <div className="card" style={{ marginBottom: 12, background: 'var(--sfy)' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--pd)', marginBottom: 10 }}>Tambah Jadwal Berulang</div>
+        <div style={{ marginBottom: 10 }}>
           <label className="lbl">Unit</label>
-          <select value={form.unit_id} onChange={e => setForm(v => ({ ...v, unit_id: e.target.value }))} style={{ ...IS, width:'100%' }}>
+          <select value={form.unit_id} onChange={e => setForm(v => ({ ...v, unit_id: e.target.value }))} style={{ ...IS, width: '100%' }}>
             <option value="">-- Pilih Unit --</option>
-            {unitsWithoutSchedule.map(u => <option key={u.id} value={u.id}>{u.nomor_unit} — {u.brand} {u.tipe}</option>)}
+            {unitsWithoutSchedule.map(u => (
+              <option key={u.id} value={u.id}>{u.nomor_unit} — {u.brand} {u.tipe}</option>
+            ))}
           </select>
-          {unitsWithoutSchedule.length === 0 && units.length > 0 && <div style={{ fontSize:11, color:'var(--t3)', marginTop:4 }}>Semua unit sudah memiliki jadwal</div>}
+          {unitsWithoutSchedule.length === 0 && units.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Semua unit sudah memiliki jadwal</div>
+          )}
         </div>
-        <div style={{ marginBottom:10 }}>
+        <div style={{ marginBottom: 10 }}>
           <label className="lbl">Hari Inspeksi</label>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:4 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
             {HARI_LIST.map(h => (
               <button key={h} onClick={() => toggleHari(h)}
-                style={{ padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700, cursor:'pointer', border:'1.5px solid', background: form.hari.includes(h) ? 'var(--p)' : 'transparent', color: form.hari.includes(h) ? '#1c1917' : 'var(--t3)', borderColor: form.hari.includes(h) ? 'var(--p)' : 'var(--bd)', transition:'all .15s' }}>
+                style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', background: form.hari.includes(h) ? 'var(--p)' : 'transparent', color: form.hari.includes(h) ? '#1c1917' : 'var(--t3)', borderColor: form.hari.includes(h) ? 'var(--p)' : 'var(--bd)', transition: 'all .15s' }}>
                 {h}
               </button>
             ))}
           </div>
         </div>
-        <button className="btn-y btn-sm" onClick={save} disabled={saving}>{saving ? 'Menyimpan...' : '+ Simpan Jadwal'}</button>
+        <button className="btn-y btn-sm" onClick={save} disabled={saving}>
+          {saving ? 'Menyimpan...' : '+ Simpan Jadwal'}
+        </button>
       </div>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {/* ── List jadwal ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {recurring.map(s => (
-          <div key={s._id} className="scard" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap', opacity: s.aktif ? 1 : 0.5 }}>
-            <div>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                <span className="mono" style={{ color:'var(--pd)', fontWeight:700 }}>{s.unit?.nomor_unit}</span>
-                <span style={{ fontSize:12, color:'var(--t3)' }}>{s.unit?.brand} {s.unit?.tipe}</span>
-                {!s.aktif && <span style={{ fontSize:10, color:'var(--t3)', background:'var(--bd2)', padding:'1px 6px', borderRadius:4 }}>Nonaktif</span>}
+          <div key={s._id} className="scard" style={{ opacity: s.aktif ? 1 : 0.5 }}>
+
+            {/* ── Mode Edit ── */}
+            {editRow?.id === s.id ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: 'var(--pd)' }}>{s.unit?.nomor_unit}</span>
+                  <span style={{ fontSize: 12, color: 'var(--t3)' }}>{s.unit?.brand} {s.unit?.tipe}</span>
+                  <span style={{ fontSize: 11, color: 'var(--inf)', background: 'var(--infbg)', border: '1px solid var(--infbd)', padding: '1px 8px', borderRadius: 20 }}>Mode Edit</span>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label className="lbl">Hari Inspeksi</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {HARI_LIST.map(h => (
+                      <button key={h}
+                        onClick={() => setEditRow(v => ({
+                          ...v,
+                          hari: v.hari.includes(h) ? v.hari.filter(x => x !== h) : [...v.hari, h]
+                        }))}
+                        style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', background: editRow.hari.includes(h) ? 'var(--p)' : 'transparent', color: editRow.hari.includes(h) ? '#1c1917' : 'var(--t3)', borderColor: editRow.hari.includes(h) ? 'var(--p)' : 'var(--bd)', transition: 'all .15s' }}>
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                  {editRow.hari.length === 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--err)', marginTop: 6 }}>⚠ Pilih minimal 1 hari</div>
+                  )}
+                </div>
+
+                {/* Toggle aktif saat edit */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <label className="lbl" style={{ marginBottom: 0 }}>Status:</label>
+                  <button
+                    onClick={() => setEditRow(v => ({ ...v, aktif: !v.aktif }))}
+                    style={{ padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', background: editRow.aktif ? 'var(--ok)' : 'var(--bd2)', color: editRow.aktif ? '#fff' : 'var(--t3)', borderColor: editRow.aktif ? 'var(--ok)' : 'var(--bd)', transition: 'all .15s' }}>
+                    {editRow.aktif ? '✓ Aktif' : '✕ Nonaktif'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-ok btn-sm" onClick={saveEdit} disabled={saving || editRow.hari.length === 0}>
+                    {saving ? '...' : '✓ Simpan'}
+                  </button>
+                  <button className="btn-g btn-sm" onClick={() => setEditRow(null)}>Batal</button>
+                </div>
               </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                {s.hari.map(h => <span key={h} style={{ background:'var(--pl)', color:'var(--wn)', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700 }}>{h}</span>)}
+
+            ) : (
+              /* ── Mode Normal ── */
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span className="mono" style={{ color: 'var(--pd)', fontWeight: 700 }}>{s.unit?.nomor_unit}</span>
+                    <span style={{ fontSize: 12, color: 'var(--t3)' }}>{s.unit?.brand} {s.unit?.tipe}</span>
+                    {!s.aktif && (
+                      <span style={{ fontSize: 10, color: 'var(--t3)', background: 'var(--bd2)', padding: '1px 6px', borderRadius: 4 }}>Nonaktif</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {s.hari.map(h => (
+                      <span key={h} style={{ background: 'var(--pl)', color: 'var(--wn)', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{h}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button
+                    className="btn-sm"
+                    style={{ background: 'var(--infbg)', color: 'var(--inf)', border: '1.5px solid var(--infbd)', fontWeight: 700 }}
+                    onClick={() => setEditRow({ ...s })}>
+                    Edit
+                  </button>
+                  <button className="btn-g btn-sm" onClick={() => toggle(s.id, !s.aktif)}>
+                    {s.aktif ? 'Nonaktifkan' : 'Aktifkan'}
+                  </button>
+                  <button className="btn-err btn-sm" onClick={() => remove(s.id)}>Hapus</button>
+                </div>
               </div>
-            </div>
-            <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-              <button className="btn-g btn-sm" onClick={() => toggle(s.id, !s.aktif)}>{s.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button>
-              <button className="btn-err btn-sm" onClick={() => remove(s.id)}>Hapus</button>
-            </div>
+            )}
+
           </div>
         ))}
-        {recurring.length === 0 && <div style={{ textAlign:'center', padding:32, color:'var(--t3)' }}>Belum ada jadwal berulang</div>}
+        {recurring.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>Belum ada jadwal berulang</div>
+        )}
       </div>
     </div>
   )

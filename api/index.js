@@ -741,9 +741,6 @@ export default async function handler(req, res) {
         if (!unit_id || !hari?.length)
           return res.status(400).json({ error: "Field wajib: unit_id, hari" });
 
-        // BUGFIX: findOneAndUpdate+upsert tidak trigger pre('save') hook
-        // sehingga field 'id' (integer auto-increment) tidak ter-set.
-        // Fix: cek manual → update jika ada, create baru jika belum ada.
         let s = await RecurringSchedule.findOne({ unit_id: parseInt(unit_id) });
         if (s) {
           s.hari = hari;
@@ -778,16 +775,11 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: "Jadwal tidak ditemukan" });
         return res.json(s);
       }
-      if (meth === "DELETE") {
-        const s = await RecurringSchedule.findOneAndUpdate(
-          filter,
-          { aktif: false },
-          { new: true },
-        );
-        if (!s)
-          return res.status(404).json({ error: "Jadwal tidak ditemukan" });
-        return res.json({ message: "Jadwal dinonaktifkan" });
-      }
+      if (meth === 'DELETE') {
+  const s = await RecurringSchedule.findOneAndDelete(filter)
+  if (!s) return res.status(404).json({ error: 'Jadwal tidak ditemukan' })
+  return res.json({ message: 'Jadwal dihapus' })
+}
     }
 
     // ── Inspections ──────────────────────────────────────────────────────
