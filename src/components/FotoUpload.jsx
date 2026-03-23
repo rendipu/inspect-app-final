@@ -126,7 +126,6 @@ export default function FotoUpload({ value, onChange, label = '📷 Upload Foto'
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleInput}
         style={{ display: 'none' }}
         id={idRef.current}

@@ -936,7 +936,7 @@ export default async function handler(req, res) {
           unit_nomor: unit.nomor_unit,
           unit_tipe: unit.tipe,
           unit_brand: unit.brand,
-          tanggal: inspDate,
+          tanggal: startOfDay,
           hour_meter: parseFloat(hour_meter),
           jam_start,
           jam_finish,
