@@ -47,10 +47,6 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const publicMatch = window.location.pathname.match(/^\/u\/(.+)$/)
-if (publicMatch) {
-  return <PublicUnitPage qrCode={decodeURIComponent(publicMatch[1])} />
-}
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('inspect_user')) } catch { return null }
   })

@@ -624,8 +624,8 @@ export default async function handler(req, res) {
         const { unit_tipe, brand } = req.query;
         let filter = { aktif: true };
         if (unit_tipe || brand) {
-          const typeCond = unit_tipe ? { $or: [{ unit_tipe: { $size: 0 } }, { unit_tipe: null }, { unit_tipe }] } : {};
-          const brandCond = brand ? { $or: [{ brand: { $size: 0 } }, { brand: null }, { brand }] } : {};
+          const typeCond = unit_tipe ? { $or: [{ unit_tipe: { $size: 0 } }, { unit_tipe: null }, { unit_tipe: { $in: [unit_tipe] } }] } : {};
+          const brandCond = brand ? { $or: [{ brand: { $size: 0 } }, { brand: null }, { brand: { $in: [brand] } }] } : {};
           
           if (unit_tipe && brand) {
             filter.$and = [typeCond, brandCond];

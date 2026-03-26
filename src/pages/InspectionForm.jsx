@@ -40,7 +40,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
 
   const currentUser = users.find(u => u.id === user.id)
 
-  const [unitId,    setUnitId]    = useState(selUnit ? String(selUnit._id) : '')
+  const [unitId,    setUnitId]    = useState(selUnit ? String(selUnit.id) : '')
   const [hm,        setHm]        = useState('')
   const [hmError,   setHmError]   = useState('')
   const [selMechs,  setSelMechs]  = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
@@ -56,18 +56,18 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
   const [stockInfo, setStockInfo] = useState({})
   const stockTimers = useRef({})
 
-  const selectedUnit = units.find(u => u._id === unitId)
+  const selectedUnit = units.find(u => String(u.id) === unitId)
 
   // FIX: isSameLocalDay pakai tanggal lokal — tidak salah di timezone WIB
   const todayInspection = unitId
-    ? inspections.find(i => i.unit_id === parseInt(unitId) && isSameLocalDay(i.tanggal))
+    ? inspections.find(i => i.unit_id === parseInt(unitId, 10) && isSameLocalDay(i.tanggal))
     : null
   const alreadyDone = !!todayInspection
 
   // Load pertanyaan saat unit dipilih
   useEffect(() => {
     if (!unitId || alreadyDone) { setQuestions([]); return }
-    const unit = units.find(u => u._id === unitId)
+    const unit = units.find(u => String(u.id) === unitId)
     if (!unit) return
     let cancelled = false
     api.getQuestions({ unit_tipe: unit.tipe, brand: unit.brand })
@@ -186,7 +186,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
     setSaving(true)
     try {
       await api.createInspection({
-        unit_id:         parseInt(unitId),
+        unit_id:         parseInt(unitId, 10),
         hour_meter:      parseFloat(hm),
         jam_start:       start,
         jam_finish:      finish,
@@ -239,14 +239,14 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
             <select
               id="unit-id" name="unitId"
               value={unitId}
-              onChange={e => { setUnitId(e.target.value); setAns({}); setStockInfo({}) }}
+              onChange={e => { setUnitId(e.target.value ? String(parseInt(e.target.value, 10)) : ''); setAns({}); setStockInfo({}) }}
               style={{ ...IS, borderColor: alreadyDone ? 'var(--err)' : undefined }}
             >
               <option value="">-- Pilih Unit --</option>
               {units.map(u => {
                 const done = inspections.find(i => i.unit_id === u.id && isSameLocalDay(i.tanggal))
                 return (
-                  <option key={u._id} value={u._id}>
+                  <option key={u.id} value={String(u.id)}>
                     {u.nomor_unit} — {u.brand} {u.tipe}{done ? ' ✓ (sudah diinspeksi)' : ''}
                   </option>
                 )
