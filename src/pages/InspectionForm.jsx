@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useDispatch } from 'react-redux'
+import { pushToQueue } from '../store/appSlice'
 import { api } from '../lib/api'
 import MultiUserInput from '../components/MultiUserInput'
 import FotoUpload from '../components/FotoUpload'
@@ -31,7 +33,8 @@ function isSameLocalDay(isoDateStr) {
   return getLocalDateStr(new Date(isoDateStr)) === getLocalDateStr()
 }
 
-export default function InspectionForm({ user, data, selUnit, setPage, refetch }) {
+export default function InspectionForm({ user, data, selUnit, setPage, refetch, mutate }) {
+  const dispatch = useDispatch()
   const { units, users, inspections } = data
   const mechs = users.filter(u => u.role === 'mekanik')
   const gls   = users.filter(u => u.role === 'group_leader')
@@ -183,22 +186,46 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch }
       return item
     })
 
+    const payloadData = {
+      unit_id:         parseInt(unitId, 10),
+      hour_meter:      parseFloat(hm),
+      jam_start:       start,
+      jam_finish:      finish,
+      group_leader_id: parseInt(glId),
+      mekanik_ids:     selMechs.map(m => m.id),
+      answers,
+      tanggal:         TODAY,
+    }
+
     setSaving(true)
     try {
-      await api.createInspection({
-        unit_id:         parseInt(unitId, 10),
-        hour_meter:      parseFloat(hm),
-        jam_start:       start,
-        jam_finish:      finish,
-        group_leader_id: parseInt(glId),
-        mekanik_ids:     selMechs.map(m => m.id),
-        answers,
-        tanggal:         TODAY,
-      })
+      if (!navigator.onLine) {
+        throw new Error('OFFLINE')
+      }
+      await api.createInspection(payloadData)
       await refetch()
       setSubmitted(true)
     } catch (e) {
-      alert('Gagal menyimpan: ' + e.message)
+      if (e.message === 'OFFLINE' || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        // Dispatch to offline queue
+        dispatch(pushToQueue({ type: 'CREATE_INSPECTION', data: payloadData }))
+        
+        // Optimistic UI update via mutate function for current session viewing
+        if (mutate) {
+          mutate((prev) => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              inspections: [...prev.inspections, { ...payloadData, _id: 'temp-' + Date.now(), unit_nomor: selectedUnit?.nomor_unit }]
+            }
+          })
+        }
+        
+        alert('Anda sedang offline. Data Inspeksi disimpan di perangkat dan akan otomatis dikirim ketika koneksi internet kembali.')
+        setSubmitted(true)
+      } else {
+        alert('Gagal menyimpan: ' + e.message)
+      }
     } finally {
       setSaving(false)
     }

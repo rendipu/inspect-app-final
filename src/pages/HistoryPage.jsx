@@ -4,6 +4,8 @@ import WorkStatusBadge from '../components/WorkStatusBadge'
 import Pagination, { PAGE_SIZE } from '../components/Pagination'
 import { exportCsv } from '../lib/exportCsv'
 import { api } from '../lib/api'
+import { useDispatch } from 'react-redux'
+import { pushToQueue } from '../store/appSlice'
 
 // ─── Lightbox untuk lihat foto fullscreen ────────────────────────────
 function FotoLightbox({ src, onClose }) {
@@ -420,6 +422,7 @@ function TabInspeksi({ data }) {
 
 // ─── Tab: History Kerusakan ───────────────────────────────────────────
 function TabKerusakan({ data, user, refetch }) {
+  const dispatch = useDispatch()
   const { units, inspections } = data
   const [unitF,    setUnitF]    = useState('all')
   const [typeF,    setTypeF]    = useState('all')
@@ -479,10 +482,18 @@ function TabKerusakan({ data, user, refetch }) {
     }
     setUpdating(`${type}-${detailId}`)
     try {
+      if (!navigator.onLine) {
+        throw new Error('OFFLINE')
+      }
       await api.updateWorkStatus(detailId, type, { work_status: newStatus })
       await refetch()
     } catch (e) {
-      alert('Gagal: ' + e.message)
+      if (e.message === 'OFFLINE' || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        dispatch(pushToQueue({ type: 'UPDATE_WORK_STATUS', data: { detailId, type, newStatus, currentStatus } }))
+        alert('Anda sedang offline. Perubahan status kerja disimpan di perangkat dan akan dikirim otomatis saat online.')
+      } else {
+        alert('Gagal: ' + e.message)
+      }
     } finally {
       setUpdating(null)
     }
@@ -602,10 +613,18 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
     }
     setUpdating(`${type}-${detailId}`)
     try {
+      if (!navigator.onLine) {
+        throw new Error('OFFLINE')
+      }
       await api.updateWorkStatus(detailId, type, { work_status: newStatus })
       await refetch()
     } catch (e) {
-      alert('Gagal: ' + e.message)
+      if (e.message === 'OFFLINE' || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        dispatch(pushToQueue({ type: 'UPDATE_WORK_STATUS', data: { detailId, type, newStatus, currentStatus } }))
+        alert('Anda sedang offline. Perubahan status kerja disimpan di perangkat dan akan dikirim otomatis saat online.')
+      } else {
+        alert('Gagal: ' + e.message)
+      }
     } finally {
       setUpdating(null)
     }

@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { api } from '../lib/api'
 import Pagination, { PAGE_SIZE } from '../components/Pagination'
 import { SkeletonCardList } from '../components/SkeletonLoader'
-import { useSelector } from 'react-redux'
-import { selectLoading } from '../store/appSlice'
+import { useSelector, useDispatch } from 'react-redux'
+import { selectLoading, pushToQueue } from '../store/appSlice'
 
 function fmtDateTime(d) {
   if (!d) return '-'
@@ -14,6 +14,7 @@ function fmtDateTime(d) {
 }
 
 export default function HourMeter({ data, user, refetch }) {
+  const dispatch = useDispatch()
   const { units } = data
 
   const [unitId,  setUnitId]  = useState('')
@@ -80,19 +81,32 @@ export default function HourMeter({ data, user, refetch }) {
     }
 
     setSaving(true); setError(''); setSuccess('')
+    const payload = {
+      unit_id:  parseInt(unitId),
+      hm_after: newHm,
+      catatan:  catatan || `Diupdate oleh ${user.nama} pada ${new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' })}`,
+    }
+
     try {
-      await api.updateHourMeter({
-        unit_id:  parseInt(unitId),
-        hm_after: newHm,
-        catatan:  catatan || `Diupdate oleh ${user.nama} pada ${new Date().toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' })}`,
-      })
+      if (!navigator.onLine) {
+        throw new Error('OFFLINE')
+      }
+      await api.updateHourMeter(payload)
       setSuccess(`HM ${selectedUnit?.nomor_unit} berhasil diupdate ke ${newHm.toLocaleString()} jam`)
       setCatatan('')
       setUnitId('')
       setHmAfter('')
       await refetch()
     } catch (e) {
-      setError(e.message || 'Gagal mengupdate HM')
+      if (e.message === 'OFFLINE' || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+        dispatch(pushToQueue({ type: 'UPDATE_HM', data: payload }))
+        setSuccess(`Anda sedang offline. HM ${selectedUnit?.nomor_unit} tersimpan di perangkat dan akan dikirim otomatis saat online.`)
+        setCatatan('')
+        setUnitId('')
+        setHmAfter('')
+      } else {
+        setError(e.message || 'Gagal mengupdate HM')
+      }
     } finally {
       setSaving(false)
     }

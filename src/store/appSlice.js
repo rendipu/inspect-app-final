@@ -19,6 +19,7 @@ const appSlice = createSlice({
     lastSync: new Date().toISOString(),
     online: true,
     rtStatus: 'connecting',
+    offlineQueue: [], // Store pending API requests
   },
   reducers: {
     setData(state, action) {
@@ -46,13 +47,25 @@ const appSlice = createSlice({
     mutateData(state, action) {
       if (!state.data) return
       if (typeof action.payload === 'function') {
-        // For function updaters, we pass the data directly
-        // Note: RTK uses Immer, so we can mutate
         const result = action.payload(state.data)
         if (result) state.data = result
       } else {
         state.data = action.payload
       }
+    },
+    pushToQueue(state, action) {
+      // action.payload = { type: 'CREATE_INSPECTION' | 'UPDATE_HM' | 'UPDATE_WORK_STATUS', data: {...} }
+      state.offlineQueue.push({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        timestamp: new Date().toISOString(),
+        ...action.payload
+      })
+    },
+    shiftFromQueue(state) {
+      state.offlineQueue.shift()
+    },
+    removeQueueItem(state, action) {
+      state.offlineQueue = state.offlineQueue.filter(item => item.id !== action.payload)
     },
     clearAll(state) {
       state.data = null
@@ -70,6 +83,9 @@ export const {
   setOnline,
   setRtStatus,
   mutateData,
+  pushToQueue,
+  shiftFromQueue,
+  removeQueueItem,
   clearAll,
 } = appSlice.actions
 
@@ -82,5 +98,6 @@ export const selectSyncing = (state) => state.app.syncing
 export const selectOnline = (state) => state.app.online
 export const selectRtStatus = (state) => state.app.rtStatus
 export const selectLastSync = (state) => state.app.lastSync
+export const selectOfflineQueue = (state) => state.app.offlineQueue || []
 
 export default appSlice.reducer

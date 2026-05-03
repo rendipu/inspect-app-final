@@ -3,8 +3,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnline }      from './hooks/useOnline'
-
-
+import { useSyncOfflineQueue } from './hooks/useSyncOfflineQueue'
 
 import Sidebar       from './components/Sidebar'
 import TopBar        from './components/TopBar'
@@ -53,6 +52,8 @@ export default function App() {
   const { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus } = usePolling(15000, !!user)
   const width  = useWindowWidth()
   const isMob  = width < 681
+
+  useSyncOfflineQueue()
 
   // Public unit page — tidak butuh login
   if (publicQr) {
