@@ -1,5 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { api } from '../lib/api'
+import Pagination, { PAGE_SIZE } from '../components/Pagination'
+import { SkeletonCardList } from '../components/SkeletonLoader'
+import { useSelector } from 'react-redux'
+import { selectLoading } from '../store/appSlice'
 
 function fmtDateTime(d) {
   if (!d) return '-'
@@ -19,19 +23,38 @@ export default function HourMeter({ data, user, refetch }) {
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState('')
 
+  const loading = useSelector(selectLoading)
+
   // Filter kategori
   const [filterTipe,  setFilterTipe]  = useState('all')
   const [filterBrand, setFilterBrand] = useState('all')
+  const [page,        setPage]        = useState(1)
 
-  const tipes  = [...new Set(units.map(u => u.tipe))].sort()
-  const brands = [...new Set(units.map(u => u.brand))].sort()
+  useEffect(() => {
+    setPage(1)
+  }, [filterTipe, filterBrand])
 
-  const filteredUnits = units.filter(u =>
-    (filterTipe  === 'all' || u.tipe  === filterTipe)  &&
-    (filterBrand === 'all' || u.brand === filterBrand)
-  )
+  const { tipes, brands } = useMemo(() => {
+    return {
+      tipes: [...new Set(units.map(u => u.tipe))].sort(),
+      brands: [...new Set(units.map(u => u.brand))].sort()
+    }
+  }, [units])
 
-  const selectedUnit = units.find(u => u.id === parseInt(unitId))
+  const filteredUnits = useMemo(() => {
+    return units.filter(u =>
+      (filterTipe  === 'all' || u.tipe  === filterTipe)  &&
+      (filterBrand === 'all' || u.brand === filterBrand)
+    )
+  }, [units, filterTipe, filterBrand])
+
+  const paginatedUnits = useMemo(() => {
+    return [...filteredUnits]
+      .sort((a, b) => a.nomor_unit.localeCompare(b.nomor_unit))
+      .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  }, [filteredUnits, page])
+
+  const selectedUnit = useMemo(() => units.find(u => u.id === parseInt(unitId)), [units, unitId])
   // Reset HM input saat ganti unit
   const handleUnitChange = (e) => {
     const u = units.find(x => x.id === parseInt(e.target.value))
@@ -243,16 +266,16 @@ export default function HourMeter({ data, user, refetch }) {
           </div>
         </div>
 
-        {filteredUnits.length === 0 ? (
+        {loading && units.length === 0 ? (
+          <SkeletonCardList count={4} />
+        ) : filteredUnits.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
             <div>Tidak ada unit untuk filter ini</div>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }} className="g2">
-            {filteredUnits
-              .sort((a, b) => a.nomor_unit.localeCompare(b.nomor_unit))
-              .map(u => (
+            {paginatedUnits.map(u => (
                 <div
                   key={u.id}
                   onClick={() => {
@@ -287,6 +310,10 @@ export default function HourMeter({ data, user, refetch }) {
                 </div>
               ))}
           </div>
+        )}
+
+        {!loading && filteredUnits.length > 0 && (
+          <Pagination total={filteredUnits.length} page={page} setPage={setPage} />
         )}
       </div>
     </div>

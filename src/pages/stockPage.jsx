@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { setStocks, setStockLoading, invalidateStock, selectStocks, selectStockLoading, selectStockLastFetched } from '../store/stockSlice'
+import { SkeletonTable, SkeletonStatCards } from '../components/SkeletonLoader'
+import Pagination, { PAGE_SIZE } from '../components/Pagination'
 import { api } from '../lib/api'
 
 const SATUAN_LIST = ['pcs', 'liter', 'meter', 'set', 'roll', 'kg', 'box', 'unit']
@@ -675,11 +679,15 @@ function MovementForm({ item, onSave, onClose, saving }) {
 
 // ─── Main StockPage ───────────────────────────────────────────────────
 export default function StockPage({ user }) {
-  const [stocks,       setStocks]       = useState([])
-  const [loading,      setLoading]      = useState(true)
+  const dispatch = useDispatch()
+  const stocks = useSelector(selectStocks)
+  const loading = useSelector(selectStockLoading)
+  const lastFetched = useSelector(selectStockLastFetched)
+
   const [search,       setSearch]       = useState('')
   const [filterLow,    setFilterLow]    = useState(false)
   const [filterSatuan, setFilterSatuan] = useState('all')
+  const [page,         setPage]         = useState(1)
 
   const [showForm,   setShowForm]   = useState(false)
   const [showMove,   setShowMove]   = useState(false)
@@ -690,45 +698,57 @@ export default function StockPage({ user }) {
   const [error,      setError]      = useState('')
   const [success,    setSuccess]    = useState('')
 
-  const satuanList = ['all', ...new Set(stocks.map(s => s.satuan))]
+  const satuanList = useMemo(() => ['all', ...new Set(stocks.map(s => s.satuan))], [stocks])
 
-  // Load SEMUA data sekaligus tanpa search param
-  // Search & filter dilakukan murni di browser agar partial search instan
-  const loadStocks = useCallback(async () => {
-    setLoading(true)
+  const loadStocks = useCallback(async (force = false) => {
+    if (!force && lastFetched && (Date.now() - lastFetched < 5 * 60 * 1000)) {
+      return // skip re-fetch jika data masih fresh
+    }
+    dispatch(setStockLoading(true))
     try {
       const res = await api.getStocks({})
-      setStocks(res)
+      dispatch(setStocks(res))
     } catch (e) {
       setError('Gagal memuat data stock')
     } finally {
-      setLoading(false)
+      dispatch(setStockLoading(false))
     }
-  }, [])
+  }, [dispatch, lastFetched])
 
   useEffect(() => {
     loadStocks()
   }, [loadStocks])
 
   // Filter lokal murni di browser — partial search instan
-  // Ketik '7867' cocok '78675765001', ketik '001' cocok dari belakang
-  const filtered = stocks.filter(s => {
-    if (filterSatuan !== 'all' && s.satuan !== filterSatuan) return false
-    if (filterLow && !(s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1))) return false
-    if (!search.trim()) return true
-    const q = search.trim().toLowerCase()
-    return (
-      String(s.part_number          ?? '').toLowerCase().includes(q) ||
-      String(s.material_description ?? '').toLowerCase().includes(q) ||
-      String(s.location_storage     ?? '').toLowerCase().includes(q) ||
-      String(s.keterangan           ?? '').toLowerCase().includes(q)
-    )
-  })
+  const filtered = useMemo(() => {
+    return stocks.filter(s => {
+      if (filterSatuan !== 'all' && s.satuan !== filterSatuan) return false
+      if (filterLow && !(s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1))) return false
+      if (!search.trim()) return true
+      const q = search.trim().toLowerCase()
+      return (
+        String(s.part_number          ?? '').toLowerCase().includes(q) ||
+        String(s.material_description ?? '').toLowerCase().includes(q) ||
+        String(s.location_storage     ?? '').toLowerCase().includes(q) ||
+        String(s.keterangan           ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [stocks, filterSatuan, filterLow, search])
 
-  const totalItems = stocks.length
-  const lowItems   = stocks.filter(s => s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1)).length
-  const emptyItems = stocks.filter(s => s.jumlah_stock === 0).length
-  const totalNilai = stocks.reduce((sum, s) => sum + (s.jumlah_stock * (s.harga_satuan || 0)), 0)
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, filterLow, filterSatuan])
+
+  const { totalItems, lowItems, emptyItems, totalNilai } = useMemo(() => {
+    return {
+      totalItems: stocks.length,
+      lowItems: stocks.filter(s => s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1)).length,
+      emptyItems: stocks.filter(s => s.jumlah_stock === 0).length,
+      totalNilai: stocks.reduce((sum, s) => sum + (s.jumlah_stock * (s.harga_satuan || 0)), 0)
+    }
+  }, [stocks])
 
   const handleSave = async (form) => {
     setSaving(true); setError(''); setSuccess('')
@@ -741,7 +761,8 @@ export default function StockPage({ user }) {
         setSuccess('Stock baru berhasil ditambahkan')
       }
       setShowForm(false); setEditItem(null)
-      await loadStocks()
+      dispatch(invalidateStock())
+      await loadStocks(true)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -755,7 +776,8 @@ export default function StockPage({ user }) {
       await api.stockMovement(moveItem.id, moveData, moveItem.jumlah_stock)
       setSuccess(`Stock movement berhasil disimpan`)
       setShowMove(false); setMoveItem(null)
-      await loadStocks()
+      dispatch(invalidateStock())
+      await loadStocks(true)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -768,7 +790,8 @@ export default function StockPage({ user }) {
     try {
       await api.deleteStock(id)
       setSuccess(`Stock ${partNumber} dihapus`)
-      await loadStocks()
+      dispatch(invalidateStock())
+      await loadStocks(true)
     } catch (e) {
       setError(e.message)
     }
@@ -777,7 +800,8 @@ export default function StockPage({ user }) {
   const handleImportDone = async (msg) => {
     setShowImport(false)
     setSuccess(msg)
-    await loadStocks()
+    dispatch(invalidateStock())
+    await loadStocks(true)
   }
 
   return (
@@ -800,20 +824,24 @@ export default function StockPage({ user }) {
       )}
 
       {/* Summary Cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }} className="g4">
-        {[
-          { l:'Total Item',  v: totalItems,  c:'var(--p)',   sub:'jenis barang'   },
-          { l:'Stok Rendah', v: lowItems,    c:'var(--wn)',  sub:'perlu restock'  },
-          { l:'Stok Habis',  v: emptyItems,  c:'var(--err)', sub:'segera restock' },
-          { l:'Nilai Stock', v: totalNilai > 0 ? `Rp ${(totalNilai/1000000).toFixed(1)}jt` : '-', c:'var(--ok)', sub:'estimasi nilai' },
-        ].map(s => (
-          <div key={s.l} className="card" style={{ borderTop:`3px solid ${s.c}`, padding:'14px 16px' }}>
-            <div className="lbl" style={{ marginBottom:4 }}>{s.l}</div>
-            <div className="mono" style={{ fontSize:22, fontWeight:700, color:'var(--t)' }}>{s.v}</div>
-            <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
+      {loading && stocks.length === 0 ? (
+        <SkeletonStatCards count={4} />
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }} className="g4">
+          {[
+            { l:'Total Item',  v: totalItems,  c:'var(--p)',   sub:'jenis barang'   },
+            { l:'Stok Rendah', v: lowItems,    c:'var(--wn)',  sub:'perlu restock'  },
+            { l:'Stok Habis',  v: emptyItems,  c:'var(--err)', sub:'segera restock' },
+            { l:'Nilai Stock', v: totalNilai > 0 ? `Rp ${(totalNilai/1000000).toFixed(1)}jt` : '-', c:'var(--ok)', sub:'estimasi nilai' },
+          ].map(s => (
+            <div key={s.l} className="card" style={{ borderTop:`3px solid ${s.c}`, padding:'14px 16px' }}>
+              <div className="lbl" style={{ marginBottom:4 }}>{s.l}</div>
+              <div className="mono" style={{ fontSize:22, fontWeight:700, color:'var(--t)' }}>{s.v}</div>
+              <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
@@ -851,11 +879,8 @@ export default function StockPage({ user }) {
 
       {/* Tabel */}
       <div className="card" style={{ padding:0, overflow:'hidden' }}>
-        {loading ? (
-          <div style={{ textAlign:'center', padding:48, color:'var(--t3)' }}>
-            <span className="spin" style={{ fontSize:24, display:'block', marginBottom:8 }}>↻</span>
-            Memuat data stock...
-          </div>
+        {loading && stocks.length === 0 ? (
+          <SkeletonTable rows={10} cols={8} />
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:48, color:'var(--t3)' }}>
             <div style={{ fontSize:36, marginBottom:8 }}>📦</div>
@@ -883,7 +908,7 @@ export default function StockPage({ user }) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(s => {
+                {paginated.map(s => {
                   const lastLog = s.stock_logs?.[0]
                   const isLow   = s.jumlah_stock > 0 && s.jumlah_stock <= (s.minimum_stock || 1)
                   const isEmpty = s.jumlah_stock === 0
@@ -955,6 +980,10 @@ export default function StockPage({ user }) {
           </div>
         )}
       </div>
+
+      {!loading && filtered.length > 0 && (
+        <Pagination total={filtered.length} page={page} setPage={setPage} />
+      )}
 
       {/* Modals */}
       {showForm && (

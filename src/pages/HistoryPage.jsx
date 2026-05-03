@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Badge from '../components/Badge'
 import WorkStatusBadge from '../components/WorkStatusBadge'
+import Pagination, { PAGE_SIZE } from '../components/Pagination'
+import { exportCsv } from '../lib/exportCsv'
 import { api } from '../lib/api'
 
 // ─── Lightbox untuk lihat foto fullscreen ────────────────────────────
@@ -312,35 +314,60 @@ function TabInspeksi({ data }) {
   const [unitF, setUnitF] = useState('all')
   const [from,  setFrom]  = useState('')
   const [to,    setTo]    = useState('')
+  const [page,  setPage]  = useState(1)
 
-  const filtered = inspections
-    .filter(i =>
-      // FIX #1b: select value pakai u.id (integer), filter pakai parseInt(unitF)
-      (unitF === 'all' || i.unit_id === parseInt(unitF)) &&
-      inRange(i.tanggal, from, to)
-    )
-    .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  const filtered = useMemo(() => {
+    return inspections
+      .filter(i =>
+        (unitF === 'all' || i.unit_id === parseInt(unitF)) &&
+        inRange(i.tanggal, from, to)
+      )
+      .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  }, [inspections, unitF, from, to])
+
+  const paginated = useMemo(() => {
+    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  }, [filtered, page])
+
+  const resetPage = () => setPage(1)
+
+  const handleExport = () => {
+    const unitName = unitF !== 'all' ? units.find(u => u.id === parseInt(unitF))?.nomor_unit : ''
+    const dateRange = from && to ? `_${from}_sd_${to}` : from ? `_dari_${from}` : to ? `_sd_${to}` : ''
+    const unitSuffix = unitName ? `_${unitName}` : ''
+    const headers = ['Tanggal','No Unit','Tipe','Brand','Group Leader','Mekanik','HM','Jam Start','Jam Finish','Durasi','Good','Bad','Repair']
+    const rows = filtered.map(ins => {
+      const u = ins.unit || units.find(x => x.id === ins.unit_id)
+      const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
+      const good = (ins.answers || []).filter(a => a.answer === 'good').length
+      const bad = (ins.answers || []).filter(a => a.answer === 'bad').length
+      const repair = (ins.answers || []).filter(a => a.answer === 'repair').length
+      return [fmtDate(ins.tanggal), u?.nomor_unit || ins.unit_nomor, u?.tipe, u?.brand, ins.group_leader_nama || '-', mechs, ins.hour_meter, ins.jam_start, ins.jam_finish, fmtDuration(ins.jam_start, ins.jam_finish), good, bad, repair]
+    })
+    exportCsv(`History_Inspeksi${unitSuffix}${dateRange}.csv`, headers, rows)
+  }
 
   return (
     <div>
-      <DateFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
+      <DateFilter from={from} to={to} setFrom={(v) => { setFrom(v); resetPage() }} setTo={(v) => { setTo(v); resetPage() }} />
 
-      <div style={{ marginBottom: 14 }}>
-        {/* FIX #1b: value={u.id} bukan u._id agar parseInt cocok dengan i.unit_id */}
-        <select id="filter-unit-inspeksi" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 200 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select id="filter-unit-inspeksi" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => { setUnitF(e.target.value); resetPage() }} style={{ minWidth: 200 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
+        {filtered.length > 0 && (
+          <button onClick={handleExport} className="btn-oy btn-sm" style={{ marginLeft: 'auto' }}>📥 Export CSV</button>
+        )}
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>{filtered.length} inspeksi</div>
       {filtered.length === 0 && <EmptyState />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map(ins => {
+        {paginated.map(ins => {
           const u      = ins.unit || units.find(x => x.id === ins.unit_id)
           const mechs  = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-          // FIX #3: group_leader_nama adalah string flat, bukan object group_leader.nama
           const gl     = ins.group_leader_nama || '-'
           const dur    = fmtDuration(ins.jam_start, ins.jam_finish)
           const good   = (ins.answers || []).filter(a => a.answer === 'good').length
@@ -385,6 +412,8 @@ function TabInspeksi({ data }) {
           )
         })}
       </div>
+
+      <Pagination total={filtered.length} page={page} setPage={setPage} />
     </div>
   )
 }
@@ -397,35 +426,51 @@ function TabKerusakan({ data, user, refetch }) {
   const [from,     setFrom]     = useState('')
   const [to,       setTo]       = useState('')
   const [updating, setUpdating] = useState(null)
+  const [page,     setPage]     = useState(1)
 
-  const rows = []
-  inspections.forEach(ins => {
-    const u     = ins.unit || units.find(x => x.id === ins.unit_id)
-    const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-    ;(ins.answers || []).forEach(a => {
-      if ((a.answer === 'bad' || a.answer === 'repair') && inRange(ins.tanggal, from, to)) {
-        rows.push({
-          key:          `${ins._id}-${a._id}`,
-          tanggal:      ins.tanggal,
-          hm:           ins.hour_meter,
-          u,
-          unit_nomor:   ins.unit_nomor,
-          mechs,
-          // FIX #1a: simpan dari field embed yang benar (bukan a.question yang undefined)
-          q_pertanyaan: a.question_pertanyaan,
-          q_kategori:   a.question_kategori,
-          type:         a.answer,
-          detail:       a.answer === 'bad' ? a.part_order : a.repair,
-          part_order:   a.part_order || null,
-        })
-      }
+  const badRecords = useMemo(() => {
+    const rows = []
+    inspections.forEach(ins => {
+      const u     = ins.unit || units.find(x => x.id === ins.unit_id)
+      const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
+      ;(ins.answers || []).forEach(a => {
+        if ((a.answer === 'bad' || a.answer === 'repair')) {
+          rows.push({
+            key:          `${ins._id}-${a._id}`,
+            tanggal:      ins.tanggal,
+            hm:           ins.hour_meter,
+            u,
+            unit_id:      ins.unit_id,
+            unit_nomor:   ins.unit_nomor,
+            mechs,
+            group_leader: ins.group_leader_nama || '-',
+            q_pertanyaan: a.question_pertanyaan,
+            q_kategori:   a.question_kategori,
+            type:         a.answer,
+            detail:       a.answer === 'bad' ? a.part_order : a.repair,
+            part_order:   a.part_order || null,
+          })
+        }
+      })
     })
-  })
+    return rows
+  }, [inspections, units])
 
-  const filtered = rows
-    // FIX #1b: bandingkan r.u?.id (integer) bukan r.u?._id (ObjectId string)
-    .filter(r => (unitF === 'all' || r.u?.id === parseInt(unitF)) && (typeF === 'all' || r.type === typeF))
-    .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  const filtered = useMemo(() => {
+    return badRecords
+      .filter(r => 
+        (unitF === 'all' || r.unit_id === parseInt(unitF)) && 
+        (typeF === 'all' || r.type === typeF) &&
+        inRange(r.tanggal, from, to)
+      )
+      .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  }, [badRecords, unitF, typeF, from, to])
+
+  const paginated = useMemo(() => {
+    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  }, [filtered, page])
+
+  const resetPage = () => setPage(1)
 
   const handleWorkStatus = async (detailId, type, newStatus, currentStatus) => {
     if (currentStatus === 'sudah_selesai' && newStatus === 'belum_dikerjakan' && user.role !== 'admin') {
@@ -443,34 +488,54 @@ function TabKerusakan({ data, user, refetch }) {
     }
   }
 
+  const handleExport = () => {
+    const unitName = unitF !== 'all' ? units.find(u => u.id === parseInt(unitF))?.nomor_unit : ''
+    const dateRange = from && to ? `_${from}_sd_${to}` : from ? `_dari_${from}` : to ? `_sd_${to}` : ''
+    const unitSuffix = unitName ? `_${unitName}` : ''
+    const headers = ['Tanggal','No Unit','Tipe','Kategori','Item Inspeksi','Jenis','Part Name','Part Number','Qty','Keterangan','Group Leader','Mekanik','Work Status','HM']
+    const csvRows = filtered.map(r => [
+      fmtDate(r.tanggal), r.u?.nomor_unit || r.unit_nomor, r.u?.tipe || '', r.q_kategori, r.q_pertanyaan,
+      r.type === 'bad' ? 'Order Part' : 'Repair',
+      r.detail?.part_name || r.part_order?.part_name || '', r.detail?.part_number || r.part_order?.part_number || '',
+      r.detail?.quantity || r.part_order?.quantity || '', r.detail?.keterangan || '',
+      r.group_leader, r.mechs,
+      r.detail?.work_status || 'belum_dikerjakan', r.hm
+    ])
+    exportCsv(`History_Kerusakan${unitSuffix}${dateRange}.csv`, headers, csvRows)
+  }
+
   return (
     <div>
-      <DateFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
+      <DateFilter from={from} to={to} setFrom={(v) => { setFrom(v); resetPage() }} setTo={(v) => { setTo(v); resetPage() }} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* FIX #1b: value={u.id} integer agar cocok dengan parseInt di filter */}
-        <select id="filter-unit-kerusakan" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
+        <select id="filter-unit-kerusakan" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => { setUnitF(e.target.value); resetPage() }} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
         <div style={{ display: 'flex', gap: 6 }}>
           {[['all','Semua'],['bad','Order Part'],['repair','Repair']].map(([f,l]) => (
-            <button key={f} onClick={() => setTypeF(f)}
+            <button key={f} onClick={() => { setTypeF(f); resetPage() }}
               style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', background: typeF === f ? 'var(--p)' : 'transparent', color: typeF === f ? '#1c1917' : 'var(--t3)', borderColor: typeF === f ? 'var(--p)' : 'var(--bd)', transition: 'all .15s' }}>
               {l}
             </button>
           ))}
         </div>
         <span style={{ fontSize: 12, color: 'var(--t3)', marginLeft: 'auto' }}>{filtered.length} record</span>
+        {filtered.length > 0 && (
+          <button onClick={handleExport} className="btn-oy btn-sm">📥 Export CSV</button>
+        )}
       </div>
 
       {filtered.length === 0 && <EmptyState />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map(r => (
+        {paginated.map(r => (
           <DamageCard key={r.key} r={r} user={user} updating={updating} onWorkStatus={handleWorkStatus} />
         ))}
       </div>
+
+      <Pagination total={filtered.length} page={page} setPage={setPage} />
     </div>
   )
 }
@@ -482,39 +547,53 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
   const [from,     setFrom]     = useState('')
   const [to,       setTo]       = useState('')
   const [updating, setUpdating] = useState(null)
+  const [page,     setPage]     = useState(1)
 
-  const rows = []
-  inspections.forEach(ins => {
-    if (!inRange(ins.tanggal, from, to)) return
-    const u     = ins.unit || units.find(x => x.id === ins.unit_id)
-    const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-    ;(ins.answers || []).forEach(a => {
-      const detail = a.answer === 'bad' ? a.part_order : a.answer === 'repair' ? a.repair : null
-      if (!detail) return
-      const matchOrder = filterStatus === 'order_part' && a.answer === 'bad' && detail.status === 'pending'
-      const matchWork  = filterStatus !== 'order_part' && detail.work_status === filterStatus
-      if (matchOrder || matchWork) {
-        rows.push({
+  const allWorkRecords = useMemo(() => {
+    const r = []
+    inspections.forEach(ins => {
+      const u     = ins.unit || units.find(x => x.id === ins.unit_id)
+      const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
+      ;(ins.answers || []).forEach(a => {
+        const detail = a.answer === 'bad' ? a.part_order : a.answer === 'repair' ? a.repair : null
+        if (!detail) return
+        r.push({
           key:          `${ins._id}-${a._id}`,
           tanggal:      ins.tanggal,
           hm:           ins.hour_meter,
           u,
+          unit_id:      ins.unit_id,
           unit_nomor:   ins.unit_nomor,
           mechs,
+          group_leader: ins.group_leader_nama || '-',
           q_pertanyaan: a.question_pertanyaan,
           q_kategori:   a.question_kategori,
           type:         a.answer,
           detail,
           part_order:   a.part_order || null,
         })
-      }
+      })
     })
-  })
+    return r
+  }, [inspections, units])
 
-  const filtered = rows
-    // FIX #1b: r.u?.id (integer) bukan r.u?._id (ObjectId string)
-    .filter(r => unitF === 'all' || r.u?.id === parseInt(unitF))
-    .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  const filtered = useMemo(() => {
+    return allWorkRecords
+      .filter(r => {
+        if (!inRange(r.tanggal, from, to)) return false
+        if (unitF !== 'all' && r.unit_id !== parseInt(unitF)) return false
+        const matchOrder = filterStatus === 'order_part' && r.type === 'bad' && r.detail.status === 'pending'
+        const matchWork  = filterStatus !== 'order_part' && r.detail.work_status === filterStatus
+        return matchOrder || matchWork
+      })
+      .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
+  }, [allWorkRecords, from, to, unitF, filterStatus])
+
+  const paginated = useMemo(() => {
+    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  }, [filtered, page])
+
+  const resetPage = () => setPage(1)
 
   const handleWorkStatus = async (detailId, type, newStatus, currentStatus) => {
     if (currentStatus === 'sudah_selesai' && newStatus === 'belum_dikerjakan' && user.role !== 'admin') {
@@ -532,26 +611,47 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
     }
   }
 
+  const statusLabel = { belum_dikerjakan: 'Belum_Dikerjakan', order_part: 'Sedang_Order', sudah_selesai: 'Sudah_Dikerjakan' }
+  const handleExport = () => {
+    const unitName = unitF !== 'all' ? units.find(u => u.id === parseInt(unitF))?.nomor_unit : ''
+    const dateRange = from && to ? `_${from}_sd_${to}` : from ? `_dari_${from}` : to ? `_sd_${to}` : ''
+    const unitSuffix = unitName ? `_${unitName}` : ''
+    const headers = ['Tanggal','No Unit','Tipe','Kategori','Item Inspeksi','Jenis','Part Name','Part Number','Qty','Keterangan','Group Leader','Mekanik','Work Status','HM']
+    const csvRows = filtered.map(r => [
+      fmtDate(r.tanggal), r.u?.nomor_unit || r.unit_nomor, r.u?.tipe || '', r.q_kategori, r.q_pertanyaan,
+      r.type === 'bad' ? 'Order Part' : 'Repair',
+      r.detail?.part_name || r.part_order?.part_name || '', r.detail?.part_number || r.part_order?.part_number || '',
+      r.detail?.quantity || r.part_order?.quantity || '', r.detail?.keterangan || '',
+      r.group_leader, r.mechs,
+      r.detail?.work_status || filterStatus, r.hm
+    ])
+    exportCsv(`History_${statusLabel[filterStatus] || filterStatus}${unitSuffix}${dateRange}.csv`, headers, csvRows)
+  }
+
   return (
     <div>
-      <DateFilter from={from} to={to} setFrom={setFrom} setTo={setTo} />
+      <DateFilter from={from} to={to} setFrom={(v) => { setFrom(v); resetPage() }} setTo={(v) => { setTo(v); resetPage() }} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* FIX #1b: value={u.id} integer */}
-        <select id="filter-unit-status" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => setUnitF(e.target.value)} style={{ minWidth: 180 }}>
+        <select id="filter-unit-status" name="unitF" aria-label="Filter Unit" value={unitF} onChange={e => { setUnitF(e.target.value); resetPage() }} style={{ minWidth: 180 }}>
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
         <span style={{ fontSize: 12, color: 'var(--t3)', marginLeft: 'auto' }}>{filtered.length} item</span>
+        {filtered.length > 0 && (
+          <button onClick={handleExport} className="btn-oy btn-sm">📥 Export CSV</button>
+        )}
       </div>
 
       {filtered.length === 0 && <EmptyState />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map(r => (
+        {paginated.map(r => (
           <DamageCard key={r.key} r={r} user={user} updating={updating} onWorkStatus={handleWorkStatus} />
         ))}
       </div>
+
+      <Pagination total={filtered.length} page={page} setPage={setPage} />
     </div>
   )
 }

@@ -1,6 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import Pusher from 'pusher-js'
 import { api } from '../lib/api'
+import {
+  setData,
+  setLoading,
+  setError,
+  setSyncing,
+  setOnline,
+  setRtStatus,
+  mutateData,
+  selectData,
+  selectLoading,
+  selectError,
+  selectSyncing,
+  selectLastSync,
+  selectOnline,
+  selectRtStatus,
+} from '../store/appSlice'
 
 Pusher.logToConsole = true;
 
@@ -40,13 +57,16 @@ function destroyPusher() {
 }
 
 export function usePolling(interval = 15000, enabled = true) {
-  const [data,     setData]     = useState(null)
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(null)
-  const [syncing,  setSyncing]  = useState(false)
-  const [lastSync, setLastSync] = useState(new Date())
-  const [online,   setOnline]   = useState(true)
-  const [rtStatus, setRtStatus] = useState('connecting')
+  const dispatch = useDispatch()
+
+  // Read from Redux store
+  const data     = useSelector(selectData)
+  const loading  = useSelector(selectLoading)
+  const error    = useSelector(selectError)
+  const syncing  = useSelector(selectSyncing)
+  const lastSync = useSelector(selectLastSync)
+  const online   = useSelector(selectOnline)
+  const rtStatus = useSelector(selectRtStatus)
 
   const isMounted   = useRef(true)
   const pollingRef  = useRef(null)
@@ -61,8 +81,8 @@ export function usePolling(interval = 15000, enabled = true) {
   const fetchAll = useCallback(async (silent = false) => {
     if (!enabled) return
     try {
-      if (!silent) setLoading(true)
-      else setSyncing(true)
+      if (!silent) dispatch(setLoading(true))
+      else dispatch(setSyncing(true))
 
       const getLocalYMD = (d = new Date()) =>
         new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
@@ -81,27 +101,23 @@ export function usePolling(interval = 15000, enabled = true) {
       const units       = Array.isArray(unitsRes) ? unitsRes : (unitsRes?.data || [])
       const inspections = Array.isArray(inspRes)  ? inspRes  : (inspRes?.data  || [])
 
-      setData({ users, units, questions, schedules, inspections, recurring })
-      setLastSync(new Date())
-      setError(null)
-      setOnline(true)
+      dispatch(setData({ users, units, questions, schedules, inspections, recurring }))
     } catch (err) {
       if (!isMounted.current) return
-      setError(err.message)
-      setOnline(false)
+      dispatch(setError(err.message))
     } finally {
       if (!isMounted.current) return
-      setLoading(false)
-      setSyncing(false)
+      dispatch(setLoading(false))
+      dispatch(setSyncing(false))
     }
-  }, [enabled])
+  }, [enabled, dispatch])
 
   fetchAllRef.current = fetchAll
 
   // ── Setup Pusher (singleton — aman dari StrictMode double-mount) ──
   useEffect(() => {
     if (!enabled || !PUSHER_KEY) {
-      if (!PUSHER_KEY) setRtStatus('unavailable')
+      if (!PUSHER_KEY) dispatch(setRtStatus('unavailable'))
       return
     }
 
@@ -111,17 +127,17 @@ export function usePolling(interval = 15000, enabled = true) {
     // Sync status awal
     const currentState = pusher.connection.state
     if (currentState === 'connected') {
-      setRtStatus('connected')
+      dispatch(setRtStatus('connected'))
     } else if (currentState === 'connecting' || currentState === 'initialized') {
-      setRtStatus('connecting')
+      dispatch(setRtStatus('connecting'))
     }
 
     const onStateChange = ({ current: s }) => {
       if (!isMounted.current) return
       console.log('[RT Status Updated]', s)
-      if (s === 'connected')                       setRtStatus('connected')
-      else if (s === 'unavailable' || s === 'failed') setRtStatus('unavailable')
-      else                                          setRtStatus('connecting')
+      if (s === 'connected')                       dispatch(setRtStatus('connected'))
+      else if (s === 'unavailable' || s === 'failed') dispatch(setRtStatus('unavailable'))
+      else                                          dispatch(setRtStatus('connecting'))
     }
 
     pusher.connection.bind('state_change', onStateChange)
@@ -139,7 +155,7 @@ export function usePolling(interval = 15000, enabled = true) {
     // Timeout fallback jika Pusher tidak bisa connect dalam 10 detik
     const connTimeout = setTimeout(() => {
       if (pusher.connection.state !== 'connected' && isMounted.current) {
-        setRtStatus('unavailable')
+        dispatch(setRtStatus('unavailable'))
       }
     }, 10000)
 
@@ -159,7 +175,7 @@ export function usePolling(interval = 15000, enabled = true) {
         destroyPusher()
       }
     }
-  }, [enabled])
+  }, [enabled, dispatch])
 
   // ── Polling + visibilitychange ────────────────────────────────────
   useEffect(() => {
@@ -185,11 +201,8 @@ export function usePolling(interval = 15000, enabled = true) {
   }, [enabled, interval, fetchAll])
 
   const mutate = useCallback((updater) => {
-    setData(prev => {
-      if (!prev) return prev
-      return typeof updater === 'function' ? updater(prev) : updater
-    })
-  }, [])
+    dispatch(mutateData(updater))
+  }, [dispatch])
 
   const refetch = useCallback(() => fetchAllRef.current?.(true), [])
 

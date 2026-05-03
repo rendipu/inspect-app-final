@@ -1,5 +1,6 @@
 function fmtTime(d) {
-  return d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+  if (!d) return '-'
+  return new Date(d).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
 }
 
 export default function LiveIndicator({ syncing, lastSync, compact = false, rtStatus }) {

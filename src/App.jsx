@@ -11,6 +11,7 @@ import TopBar        from './components/TopBar'
 import BottomNav     from './components/BottomNav'
 import PwaBanner     from './components/PwaBanner'
 import LiveIndicator from './components/LiveIndicator'
+import { SkeletonDashboard, SkeletonPage } from './components/SkeletonLoader'
 
 // Eager — tampil pertama kali, harus instant
 import LoginPage from './pages/LoginPage'
@@ -28,20 +29,10 @@ const HourMeter      = lazy(() => import('./pages/HourMeter'))
 const StockPage      = lazy(() => import('./pages/stockPage'))
 const PublicUnitPage = lazy(() => import('./pages/PublicUnitPage'))
 
-function PageLoader() {
-  return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48, color:'var(--t3)', gap:10, fontSize:13 }}>
-      <span className="spin" style={{ fontSize:20 }}>↻</span>
-      Memuat...
-    </div>
-  )
-}
-
 function LoadingScreen() {
   return (
-    <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
-      <div style={{ width:56, height:56, background:'var(--p)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, boxShadow:'0 4px 20px rgba(245,158,11,.3)' }}>⚙</div>
-      <div style={{ fontSize:14, color:'var(--t3)' }}>Memuat data...</div>
+    <div style={{ minHeight:'100vh', background:'var(--bg)' }}>
+      <SkeletonDashboard />
     </div>
   )
 }
@@ -132,7 +123,7 @@ export default function App() {
         <>
           <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} rtStatus={rtStatus} />
           <main className="main-with-bottom-nav" style={{ padding:'14px 14px 0' }}>
-            <Suspense fallback={<PageLoader />}>
+            <Suspense fallback={<SkeletonPage />}>
               {pageMap[page] ?? pageMap.dashboard}
             </Suspense>
           </main>
@@ -145,7 +136,7 @@ export default function App() {
             <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
               <LiveIndicator syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />
             </div>
-            <Suspense fallback={<PageLoader />}>
+            <Suspense fallback={<SkeletonPage />}>
               {pageMap[page] ?? pageMap.dashboard}
             </Suspense>
           </main>

@@ -1,0 +1,35 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 24 modules transformed.
+
+PWA v0.20.5
+mode      generateSW
+precache  27 entries (959.42 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-285a0627.js
+[31mx[39m Build failed in 6.62s
+[31merror during build:
+[31m[vite-plugin-pwa:build] [plugin vite-plugin-pwa:build] src/pages/HistoryPage.jsx (449:8): There was an error during the build:
+  Transform failed with 1 error:
+C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/src/pages/HistoryPage.jsx:449:8: ERROR: Expected ":" but found "badRecords"
+Additionally, handling the error in the 'buildEnd' hook caused the following error:
+  Transform failed with 1 error:
+C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/src/pages/HistoryPage.jsx:449:8: ERROR: Expected ":" but found "badRecords"[31m
+file: [36mC:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/src/pages/HistoryPage.jsx:449:8[31m
+[33m
+[33mExpected ":" but found "badRecords"[33m
+447|            detail:       a.answer === 'bad' ? a.part_order : a.repair,
+448|            part_order:   a.part_order || null,
+449|    const badRecords = useMemo(() => {
+   |          ^
+450|      const rows = []
+451|      inspections.forEach(ins => {
+[31m
+    at getRollupError (file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/rollup/dist/es/shared/node-entry.js:23467:39
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async catchUnfinishedHookActions (file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/rollup/dist/es/shared/node-entry.js:22925:16)
+    at async rollupInternal (file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/rollup/dist/es/shared/node-entry.js:23450:5)
+    at async build (file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65709:14)
+    at async CAC.<anonymous> (file:///C:/Users/uytr/Desktop/working/inspect-app-final/inspect-app-final/node_modules/vite/dist/node/cli.js:829:5)[39m
