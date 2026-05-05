@@ -283,7 +283,7 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
         </div>
         <div className="ptbl">
           <table className="tbl">
-            <thead><tr><th>No. Unit</th><th>Tipe</th><th>Model</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Code Unit</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               {todaySch.map(s => {
                 const u = units.find(x => x.id === s.unit_id)
@@ -291,8 +291,6 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
                 return (
                   <tr key={s.id}>
                     <td><span className="mono" style={{ color:'var(--pd)', fontWeight:700, fontSize:13 }}>{u.nomor_unit}</span></td>
-                    <td>{u.tipe}</td>
-                    <td style={{ color:'var(--t3)' }}>{u.model}</td>
                     <td><Badge type={s.status} /></td>
                     <td>
                       {s.status === 'scheduled' && (user.role === 'mekanik' || user.role === 'admin') && (
