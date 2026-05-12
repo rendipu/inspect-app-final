@@ -33,6 +33,10 @@ export default defineConfig({
         // Jangan cache /api sama sekali — semua API request harus ke network langsung
         // Ini mencegah Workbox mencoba parse response API dan crash dengan
         // "Cannot read properties of undefined (reading 'payload')"
+        skipWaiting: true,
+    clientsClaim: true,
+
+    cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
