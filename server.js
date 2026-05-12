@@ -22,6 +22,11 @@ app.use('/api', async (req, res) => {
   }
 })
 
+app.use((req, res, next) => {
+  res.header("Cache-Control", "no-store");
+  next();
+});
+
 app.listen(PORT, () => {
   console.log(`\n🚀 API server: http://localhost:${PORT}`)
   console.log(`Frontend (Vite): http://localhost:5173\n`)

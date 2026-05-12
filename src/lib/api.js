@@ -4,20 +4,45 @@ function getToken() {
   return localStorage.getItem('inspect_token')
 }
 
+function clearAuthAndReload(message = 'Session expired, silakan login kembali') {
+  localStorage.removeItem('inspect_token')
+  localStorage.removeItem('inspect_user')
+
+  // Hindari infinite reload
+  if (!window.location.pathname.includes('/login')) {
+    alert(message)
+    window.location.reload()
+  }
+}
+
 async function request(path, options = {}) {
   const token = getToken()
+
   const res = await fetch(`${BASE}${path}`, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   })
 
+  // BUG FIX #14: Tangkap 401, 403, dan error lain → logout dan reload
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
+    const err = await res.json().catch(() => ({ error: res.statusText || 'Gagal memuat data' }))
+    const code = err.code || res.status
     const msg = err.detail ? `${err.error} — ${err.detail}` : (err.error || `Request gagal: ${res.status}`)
+
+    // 401 Unauthorized → sesi berakhir atau token invalid
+    // 403 Forbidden → akses ditolak (role salah/tidak cukup)
+    if (code === 401 || code === 403 || err.error === 'Token not valid' || err.error === 'Unauthorized') {
+      clearAuthAndReload(`❌ Sesi berakhir atau akses ditolak (${code}). Silakan login kembali.`)
+      return Promise.reject(new Error('Session expired'))
+    }
+
     throw new Error(msg)
   }
 
