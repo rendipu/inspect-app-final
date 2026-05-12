@@ -166,6 +166,7 @@ function UsersTab({ users, refetch }) {
             <select id="user-role" name="role" aria-label="Role" value={form.role} onChange={e => setForm(v => ({ ...v, role: e.target.value }))} style={{ ...IS, width:'100%' }}>
               <option value="mekanik">Mekanik</option>
               <option value="group_leader">Group Leader</option>
+              <option value="planner">Planner</option>
               <option value="admin">Admin</option>
               <option value="warehouse">Warehouse</option>
             </select>
@@ -194,6 +195,7 @@ function UsersTab({ users, refetch }) {
                         <select id={`edit-role-${u._id}`} name="role" aria-label="Edit Role" value={editRow.role} onChange={e => setEditRow(v => ({ ...v, role: e.target.value }))} style={IS}>
                           <option value="mekanik">mekanik</option>
                           <option value="group_leader">group_leader</option>
+                          <option value="planner">planner</option>
                           <option value="admin">admin</option>
                           <option value="warehouse">warehouse</option>
                         </select>

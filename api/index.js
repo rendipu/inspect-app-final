@@ -79,7 +79,7 @@ const UserSchema = new Schema(
     jabatan: String,
     role: {
       type: String,
-      enum: ["admin", "group_leader", "mekanik", "warehouse"],
+      enum: ["admin", "group_leader", "mekanik", "warehouse", "planner"],
       required: true,
     },
     password: { type: String, required: true },

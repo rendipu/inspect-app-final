@@ -2,14 +2,15 @@ import Badge from './Badge'
 import logo from '/logo/mineinspect-crane.png'
 
 const MENUS = [
-  { key: 'dashboard', icon: '▦', label: 'Dashboard', roles: ['admin', 'group_leader', 'mekanik', 'warehouse'] },
-  { key: 'inspection', icon: '📋', label: 'Form Inspeksi', roles: ['mekanik', 'admin'] },
-  { key: 'hourmeter', icon: '⏱', label: 'Update Hour Meter', roles: ['admin', 'group_leader', 'mekanik'] },
-  { key: 'stock', icon: '📦', label: 'Stock Barang', roles: ['admin', 'warehouse', 'group_leader', 'mekanik'] },
-  { key: 'history', icon: '🗂', label: 'History', roles: ['admin', 'group_leader', 'mekanik'] },
-  { key: 'analytics', icon: '📊', label: 'Analytics', roles: ['admin', 'group_leader', 'mekanik'] },
-  { key: 'approvals', icon: '✅', label: 'Approval Order', roles: ['group_leader'] },
-  { key: 'admin', icon: '⚙', label: 'Manajemen Admin', roles: ['admin'] },
+  { key: 'dashboard',     icon: '▦',  label: 'Dashboard',        roles: ['admin', 'group_leader', 'mekanik', 'warehouse', 'planner'] },
+  { key: 'inspection',   icon: '📋', label: 'Form Inspeksi',    roles: ['mekanik', 'admin'] },
+  { key: 'hourmeter',    icon: '⏱',  label: 'Update Hour Meter', roles: ['admin', 'group_leader', 'mekanik', 'planner'] },
+  { key: 'stock',        icon: '📦', label: 'Stock Barang',     roles: ['admin', 'warehouse', 'group_leader', 'mekanik', 'planner'] },
+  { key: 'history',      icon: '🗂',  label: 'History',          roles: ['admin', 'group_leader', 'mekanik', 'planner'] },
+  { key: 'analytics',   icon: '📊', label: 'Analytics',        roles: ['admin', 'group_leader', 'mekanik', 'planner'] },
+  { key: 'approvals',   icon: '✅', label: 'Approval Order',   roles: ['group_leader'] },
+  { key: 'plannerorders', icon: '📋', label: 'Planner Orders',   roles: ['planner'] },
+  { key: 'admin',        icon: '⚙',  label: 'Manajemen Admin',  roles: ['admin'] },
 ]
 
 export default function Sidebar({ user, page, setPage, onLogout, isMob }) {

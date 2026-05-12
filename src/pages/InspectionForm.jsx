@@ -54,6 +54,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
   const [questions, setQuestions] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [saving,    setSaving]    = useState(false)
+  const [unitSearch, setUnitSearch] = useState('')
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false)
 
   // stockInfo: { [qid]: { found, jumlah, satuan, part_number, minimum } | { found: false } }
   const [stockInfo, setStockInfo] = useState({})
@@ -263,22 +265,72 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
 
           <div style={{ gridColumn: '1 / -1' }}>
             <label className="lbl" htmlFor="unit-id">Unit *</label>
-            <select
-              id="unit-id" name="unitId"
-              value={unitId}
-              onChange={e => { setUnitId(e.target.value ? String(parseInt(e.target.value, 10)) : ''); setAns({}); setStockInfo({}) }}
-              style={{ ...IS, borderColor: alreadyDone ? 'var(--err)' : undefined }}
-            >
-              <option value="">-- Pilih Unit --</option>
-              {units.map(u => {
-                const done = inspections.find(i => i.unit_id === u.id && isSameLocalDay(i.tanggal))
-                return (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.nomor_unit} — {u.brand} {u.tipe}{done ? ' ✓ (sudah diinspeksi)' : ''}
-                  </option>
-                )
-              })}
-            </select>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="unit-id"
+                type="text"
+                value={showUnitDropdown ? unitSearch : (selectedUnit ? `${selectedUnit.nomor_unit} — ${selectedUnit.brand} ${selectedUnit.tipe}` : '')}
+                onChange={e => {
+                  setUnitSearch(e.target.value);
+                  if (!showUnitDropdown) setShowUnitDropdown(true);
+                }}
+                onFocus={() => {
+                  setShowUnitDropdown(true);
+                  setUnitSearch('');
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowUnitDropdown(false), 200);
+                }}
+                placeholder="Cari atau Pilih Unit..."
+                style={{ ...IS, borderColor: alreadyDone ? 'var(--err)' : undefined }}
+                autoComplete="off"
+              />
+              {showUnitDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'var(--bg, #ffffff)', border: '1px solid var(--bd)',
+                  borderRadius: 6, maxHeight: 250, overflowY: 'auto',
+                  zIndex: 10, marginTop: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}>
+                  {units.filter(u => {
+                    const searchLower = unitSearch.toLowerCase();
+                    const text = `${u.nomor_unit} — ${u.brand} ${u.tipe}`.toLowerCase();
+                    return text.includes(searchLower);
+                  }).map(u => {
+                    const done = inspections.find(i => i.unit_id === u.id && isSameLocalDay(i.tanggal));
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => {
+                          setUnitId(String(u.id));
+                          setAns({});
+                          setStockInfo({});
+                          setShowUnitDropdown(false);
+                          setUnitSearch('');
+                        }}
+                        style={{
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--bd2, #f1f5f9)',
+                          fontSize: 13,
+                          color: done ? 'var(--t3, #94a3b8)' : 'var(--t, #0f172a)',
+                          background: 'var(--bg, #ffffff)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bd2, #f1f5f9)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'var(--bg, #ffffff)'}
+                      >
+                        {u.nomor_unit} — {u.brand} {u.tipe}{done ? ' ✓ (sudah diinspeksi)' : ''}
+                      </div>
+                    )
+                  })}
+                  {units.filter(u => `${u.nomor_unit} — ${u.brand} ${u.tipe}`.toLowerCase().includes(unitSearch.toLowerCase())).length === 0 && (
+                    <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--t3)', textAlign: 'center', background: 'var(--bg, #ffffff)' }}>
+                      Unit tidak ditemukan
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {selectedUnit && !alreadyDone && (
               <div style={{ marginTop: 6, fontSize: 11, color: 'var(--t3)' }}>

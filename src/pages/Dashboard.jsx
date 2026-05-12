@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import jsQR from 'jsqr'
 import Badge from '../components/Badge'
 import LiveIndicator from '../components/LiveIndicator'
@@ -222,6 +222,39 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
   const pct      = total > 0 ? Math.round(done / total * 100) : 0
   const pctColor = pct >= 100 ? 'var(--ok)' : pct >= 60 ? 'var(--p)' : 'var(--err)'
 
+  // ── Notifikasi order planner untuk mekanik ──────────────────────────
+  const plannerNotifs = useMemo(() => {
+    if (!user) return []
+    const notifs = []
+    inspections.forEach(ins => {
+      // Hanya tampilkan notifikasi untuk inspeksi yang melibatkan user ini
+      const isMine = user.role === 'mekanik'
+        ? (ins.mekaniks || []).some(m => m.user_id === user.id || m.user_nama === user.nama)
+        : true // admin/GL/planner lihat semua
+      if (!isMine) return
+      ;(ins.answers || []).forEach(a => {
+        if (a.answer === 'bad' && a.part_order) {
+          const ws = a.part_order.work_status
+          if (ws === 'sudah_dipesan' || ws === 'full_supply') {
+            const u = ins.unit || units.find(x => x.id === ins.unit_id)
+            notifs.push({
+              id:        a.part_order.id,
+              unit:      u?.nomor_unit || ins.unit_nomor,
+              brand:     u?.brand,
+              tipe:      u?.tipe,
+              partName:  a.part_order.part_name,
+              partNo:    a.part_order.part_number,
+              qty:       a.part_order.quantity,
+              status:    ws,
+              tanggal:   ins.tanggal,
+            })
+          }
+        }
+      })
+    })
+    return notifs
+  }, [inspections, units, user])
+
   const findUnit = (query) => {
     if (!query?.trim()) return
     const clean   = query.trim()
@@ -274,6 +307,45 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
           </div>
         ))}
       </div>
+
+      {/* ── Notifikasi Order Part (Planner) ── */}
+      {plannerNotifs.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            🔔 Notifikasi Order Part
+            <span style={{ background: '#2563eb', color: '#fff', borderRadius: 20, padding: '1px 8px', fontSize: 10, fontWeight: 800 }}>
+              {plannerNotifs.length}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {plannerNotifs.map((n, i) => {
+              const isFull    = n.status === 'full_supply'
+              const bg     = isFull ? '#f0fdf4' : '#eff6ff'
+              const bd     = isFull ? '#4ade80' : '#93c5fd'
+              const c      = isFull ? '#15803d' : '#2563eb'
+              const icon   = isFull ? '📦' : '🛒'
+              const label  = isFull ? 'Barang Sudah Datang / Full Supply' : 'Sudah Dipesan ke Supplier'
+              return (
+                <div key={`${n.id}-${i}`} style={{ background: bg, border: `1.5px solid ${bd}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <span style={{ fontSize: 24, flexShrink: 0, lineHeight: 1.2 }}>{icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: c, marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t)', marginBottom: 2 }}>
+                      {n.partName}
+                      {n.partNo && <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 400, marginLeft: 6 }}>({n.partNo})</span>}
+                      <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 400, marginLeft: 6 }}>× {n.qty}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                      Unit: <strong style={{ color: 'var(--t2)' }}>{n.unit}</strong>
+                      {(n.brand || n.tipe) && <span> · {n.brand} {n.tipe}</span>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Jadwal */}
       <div className="card" style={{ marginBottom:14 }}>

@@ -6,6 +6,7 @@ import { exportCsv } from '../lib/exportCsv'
 import { api } from '../lib/api'
 import { useDispatch } from 'react-redux'
 import { pushToQueue } from '../store/appSlice'
+import ExportPdfModal from '../components/ExportPdfModal'
 
 // ─── Lightbox untuk lihat foto fullscreen ────────────────────────────
 function FotoLightbox({ src, onClose }) {
@@ -217,15 +218,23 @@ function DamageCard({ r, user, updating, onWorkStatus }) {
             <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: 'var(--pd)' }}>{r.u?.nomor_unit || r.unit_nomor}</span>
             <span style={{ fontSize: 11, color: 'var(--t3)' }}>{r.u?.brand} {r.u?.tipe}</span>
             <Badge type={r.type === 'bad' ? 'bad' : 'repair'} />
-            {r.detail?.work_status && <WorkStatusBadge status={r.detail.work_status} />}
+            {r.detail?.work_status && !['sudah_dipesan','full_supply'].includes(r.detail.work_status) && (
+              <WorkStatusBadge status={r.detail.work_status} />
+            )}
             {(r.type === 'bad' || repairHasPart) && r.part_order?.status && (() => {
               const ws = r.part_order.work_status
               const st = r.part_order.status
-              // Sembunyikan badge Pending jika sudah dikerjakan (tidak relevan lagi)
-              // Selalu tampilkan jika Rejected agar terlihat jelas
               if (st === 'pending' && ws === 'sudah_selesai') return null
-              if (st === 'approved') return null  // sudah jelas dari WorkStatusBadge
+              if (st === 'approved') return null
+              if (['sudah_dipesan','full_supply'].includes(ws)) return null // handled below
               return <Badge type={st} />
+            })()}
+            {/* Planner status badges */}
+            {(r.type === 'bad' || repairHasPart) && r.part_order && (() => {
+              const ws = r.part_order.work_status
+              if (ws === 'sudah_dipesan') return <Badge type="sudah_dipesan" />
+              if (ws === 'full_supply')   return <Badge type="full_supply" />
+              return null
             })()}
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t)' }}>{r.q_pertanyaan}</div>
@@ -313,10 +322,12 @@ function EmptyState() {
 // ─── Tab: History Inspeksi ────────────────────────────────────────────
 function TabInspeksi({ data }) {
   const { units, inspections } = data
-  const [unitF, setUnitF] = useState('all')
-  const [from,  setFrom]  = useState('')
-  const [to,    setTo]    = useState('')
-  const [page,  setPage]  = useState(1)
+  const [unitF,        setUnitF]        = useState('all')
+  const [from,         setFrom]         = useState('')
+  const [to,           setTo]           = useState('')
+  const [page,         setPage]         = useState(1)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [pdfDefUnit,   setPdfDefUnit]   = useState('')
 
   const filtered = useMemo(() => {
     return inspections
@@ -358,10 +369,35 @@ function TabInspeksi({ data }) {
           <option value="all">Semua Unit</option>
           {units.map(u => <option key={u._id} value={u.id}>{u.nomor_unit} — {u.tipe}</option>)}
         </select>
-        {filtered.length > 0 && (
-          <button onClick={handleExport} className="btn-oy btn-sm" style={{ marginLeft: 'auto' }}>📥 Export CSV</button>
-        )}
+        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          {filtered.length > 0 && (
+            <>
+              <button
+                id="export-pdf-btn"
+                onClick={() => {
+                  setPdfDefUnit(unitF !== 'all' ? unitF : '')
+                  setShowPdfModal(true)
+                }}
+                className="btn-sm"
+                style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid #dc2626', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                📄 Export PDF
+              </button>
+              <button onClick={handleExport} className="btn-oy btn-sm">📥 Export CSV</button>
+            </>
+          )}
+        </div>
       </div>
+
+      {showPdfModal && (
+        <ExportPdfModal
+          units={units}
+          inspections={inspections}
+          defaultUnitId={pdfDefUnit}
+          defaultDate={from || ''}
+          onClose={() => setShowPdfModal(false)}
+        />
+      )}
 
       <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>{filtered.length} inspeksi</div>
       {filtered.length === 0 && <EmptyState />}
@@ -436,10 +472,10 @@ function TabKerusakan({ data, user, refetch }) {
     inspections.forEach(ins => {
       const u     = ins.unit || units.find(x => x.id === ins.unit_id)
       const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-      ;(ins.answers || []).forEach(a => {
+      ;(ins.answers || []).forEach((a, aIdx) => {
         if ((a.answer === 'bad' || a.answer === 'repair')) {
           rows.push({
-            key:          `${ins._id}-${a._id}`,
+            key:          `${ins._id}-${a._id ?? aIdx}`,
             tanggal:      ins.tanggal,
             hm:           ins.hour_meter,
             u,
@@ -565,11 +601,11 @@ function TabWorkStatus({ data, user, refetch, filterStatus }) {
     inspections.forEach(ins => {
       const u     = ins.unit || units.find(x => x.id === ins.unit_id)
       const mechs = (ins.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-      ;(ins.answers || []).forEach(a => {
+      ;(ins.answers || []).forEach((a, aIdx) => {
         const detail = a.answer === 'bad' ? a.part_order : a.answer === 'repair' ? a.repair : null
         if (!detail) return
         r.push({
-          key:          `${ins._id}-${a._id}`,
+          key:          `${ins._id}-${a._id ?? aIdx}`,
           tanggal:      ins.tanggal,
           hm:           ins.hour_meter,
           u,

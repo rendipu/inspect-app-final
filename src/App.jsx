@@ -27,6 +27,7 @@ const AdminPanel     = lazy(() => import('./pages/AdminPanel'))
 const HourMeter      = lazy(() => import('./pages/HourMeter'))
 const StockPage      = lazy(() => import('./pages/stockPage'))
 const PublicUnitPage = lazy(() => import('./pages/PublicUnitPage'))
+const PlannerOrders  = lazy(() => import('./pages/PlannerOrders'))
 
 function LoadingScreen() {
   return (
@@ -84,15 +85,16 @@ export default function App() {
 
   // HARUS sebelum early return (Rules of Hooks)
   const pageMap = useMemo(() => ({
-    dashboard: <Dashboard user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit}
-              mutate={mutate} syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />,
-    inspection: <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
-    history:    <HistoryPage    data={safeData} user={user} refetch={refetch} />,
-    analytics:  <Analytics      data={safeData} syncing={syncing} />,
-    approvals:  <Approvals      data={safeData} refetch={refetch} />,
-    admin:      <AdminPanel     data={safeData} refetch={refetch} />,
-    hourmeter:  <HourMeter      data={safeData} user={user} refetch={refetch} />,
-    stock:      <StockPage      user={user} />,
+    dashboard:    <Dashboard user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit}
+                  mutate={mutate} syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />,
+    inspection:   <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
+    history:      <HistoryPage    data={safeData} user={user} refetch={refetch} />,
+    analytics:    <Analytics      data={safeData} syncing={syncing} />,
+    approvals:    <Approvals      data={safeData} refetch={refetch} />,
+    admin:        <AdminPanel     data={safeData} refetch={refetch} />,
+    hourmeter:    <HourMeter      data={safeData} user={user} refetch={refetch} />,
+    stock:        <StockPage      user={user} />,
+    plannerorders:<PlannerOrders  data={safeData} user={user} refetch={refetch} />,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate, rtStatus])
 
