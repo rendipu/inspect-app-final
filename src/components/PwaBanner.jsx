@@ -12,7 +12,7 @@ function isInStandaloneMode() {
 }
 
 export default function PwaBanner({ onDismiss }) {
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [deferredPrompt, setDeferredPrompt] = useState(window.deferredPwaPrompt || null)
   const [show, setShow] = useState(false)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
 
@@ -27,9 +27,15 @@ export default function PwaBanner({ onDismiss }) {
       return
     }
 
+    if (window.deferredPwaPrompt) {
+      setDeferredPrompt(window.deferredPwaPrompt)
+      setShow(true)
+    }
+
     // Chrome/Edge/Opera — tangkap beforeinstallprompt
     const handler = (e) => {
       e.preventDefault()
+      window.deferredPwaPrompt = e
       setDeferredPrompt(e)
       setShow(true)
     }
@@ -37,6 +43,7 @@ export default function PwaBanner({ onDismiss }) {
     window.addEventListener('appinstalled', () => {
       setShow(false)
       setDeferredPrompt(null)
+      window.deferredPwaPrompt = null
     })
 
     return () => window.removeEventListener('beforeinstallprompt', handler)
@@ -51,6 +58,7 @@ export default function PwaBanner({ onDismiss }) {
     if (outcome === 'accepted') {
       setShow(false)
       setDeferredPrompt(null)
+      window.deferredPwaPrompt = null
     }
   }
 
@@ -59,54 +67,88 @@ export default function PwaBanner({ onDismiss }) {
     if (onDismiss) onDismiss()
   }
 
-  // Banner khusus iOS
+  const overlayStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 99999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20
+  }
+
+  const modalStyle = {
+    background: '#fff',
+    border: '1px solid var(--bd)',
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: 340,
+    width: '100%',
+    textAlign: 'center',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+    position: 'relative'
+  }
+
+  // Modal khusus iOS
   if (showIOSGuide) {
     return (
-      <div className="pwa-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 22 }}>⚙</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13 }}>Pasang sebagai Aplikasi</div>
-            <div style={{ color: '#a8a29e', fontSize: 11 }}>
-              Tap <strong style={{ color: '#fff' }}>Share</strong> lalu pilih{' '}
-              <strong style={{ color: '#fff' }}>"Add to Home Screen"</strong>
-            </div>
+      <div style={overlayStyle}>
+        <div style={modalStyle} className="fade">
+          <button
+            onClick={handleDismiss}
+            style={{ position: 'absolute', top: 12, right: 12, background: '#fff', color: '#272727ff', border: 'none', fontSize: 20, cursor: 'pointer', padding: 4 }}
+          >
+            ✕
+          </button>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
+          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8, color: 'var(--t)' }}>Install Aplikasi</div>
+          <div style={{ color: 'var(--t3)', fontSize: 13, lineHeight: 1.5 }}>
+            Untuk pengalaman terbaik, pasang aplikasi ini ke layar utama Anda.
           </div>
+          <div style={{ marginTop: 20, background: '#fff', padding: 12, borderRadius: 8, fontSize: 12, color: 'var(--t2)', border: '1px solid var(--bd)' }}>
+            Tap icon <strong style={{ color: 'var(--t)' }}>Share</strong> di browser Safari Anda lalu pilih <strong style={{ color: 'var(--t)' }}>"Add to Home Screen"</strong>
+          </div>
+          <button
+            onClick={handleDismiss}
+            style={{ marginTop: 20, background: '#c4c4c4ff', color: '#4a4a4aff', border: 'none', padding: '10px 0', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', width: '100%' }}
+          >
+            Nanti Saja
+          </button>
         </div>
-        <button
-          onClick={handleDismiss}
-          style={{ background: 'transparent', color: '#a8a29e', border: 'none', fontSize: 18, cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
-        >
-          ✕
-        </button>
       </div>
     )
   }
 
-  // Banner Chrome/Edge/Opera
+  // Modal Chrome/Edge/Opera
   return (
-    <div className="pwa-bar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 22 }}>⚙</span>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>Pasang sebagai Aplikasi</div>
-          <div style={{ color: '#a8a29e', fontSize: 11 }}>
-            Akses cepat dari home screen perangkat Anda
-          </div>
+    <div style={overlayStyle}>
+      <div style={modalStyle} className="fade">
+        <button
+          onClick={handleDismiss}
+          style={{ position: 'absolute', top: 12, right: 12, background: '#fff', color: '#181818ff', border: 'none', fontSize: 20, cursor: 'pointer', padding: 4 }}
+        >
+          ✕
+        </button>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🚀</div>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8, color: 'var(--t)' }}>Install Aplikasi</div>
+        <div style={{ color: 'var(--t3)', fontSize: 13, lineHeight: 1.5 }}>
+          Pasang aplikasi ini ke Home Screen perangkat Anda untuk akses lebih cepat dan penggunaan tanpa batas.
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         <button
           onClick={handleInstall}
-          style={{ background: 'var(--p)', color: '#1c1917', border: 'none', padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          style={{ marginTop: 20, background: 'var(--p)', color: '#1c1917', border: 'none', padding: '12px 0', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: 'pointer', width: '100%' }}
         >
-          Pasang
+          Install Sekarang
         </button>
         <button
           onClick={handleDismiss}
-          style={{ background: 'transparent', color: '#a8a29e', border: 'none', fontSize: 18, cursor: 'pointer', padding: '4px 6px' }}
+          style={{ marginTop: 10, background: '#c4c4c4ff', color: '#4a4a4aff', border: 'none', padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%' }}
         >
-          ✕
+          Mungkin Nanti
         </button>
       </div>
     </div>

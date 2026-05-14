@@ -268,3 +268,74 @@ export function exportInspectionPdf(inspection, unit) {
   const dateStr  = (inspection.tanggal || '').slice(0, 10).replace(/-/g, '')
   doc.save(`Inspeksi_${safeName}_${dateStr}.pdf`)
 }
+
+// ─────────────────────────────────────────────────────────────
+// EXPORT HOUR METER PDF
+// ─────────────────────────────────────────────────────────────
+export function exportHourMeterPdf(histories = []) {
+  const doc = new jsPDF({
+    unit: 'mm',
+    format: 'a4',
+    orientation: 'landscape',
+  })
+
+  let y = 18
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16)
+  doc.text('Laporan Hour Meter', 14, y)
+
+  y += 10
+
+  // HEADER TABLE
+  const headers = [
+    'Tanggal',
+    'Unit',
+    'Hour meter',
+    'Catatan/Lokasi',
+    'User',
+  ]
+
+  const colWidths = [35, 35, 28, 80, 35]
+
+  let x = 10
+
+  doc.setFontSize(9)
+
+  headers.forEach((h, i) => {
+    doc.setFillColor(230, 230, 230)
+    doc.rect(x, y, colWidths[i], 8, 'F')
+    doc.text(h, x + 2, y + 5.5)
+    x += colWidths[i]
+  })
+
+  y += 8
+
+  histories.forEach((item) => {
+    x = 10
+
+    const row = [
+      new Date(item.updatedAt).toLocaleDateString('id-ID'),
+      item.unit_nomor || '-',
+      String(item.hm_after ?? '-'),
+      item.catatan || '-',
+      item.user_nama || '-',
+    ]
+
+    row.forEach((cell, i) => {
+      doc.rect(x, y, colWidths[i], 8)
+      doc.text(String(cell).slice(0, 40), x + 2, y + 5.5)
+      x += colWidths[i]
+    })
+
+    y += 8
+
+    // PAGE BREAK
+    if (y > 185) {
+      doc.addPage()
+      y = 20
+    }
+  })
+
+  doc.save(`hour-meter-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.pdf`)
+}

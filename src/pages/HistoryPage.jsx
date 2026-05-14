@@ -218,7 +218,7 @@ function DamageCard({ r, user, updating, onWorkStatus }) {
             <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: 'var(--pd)' }}>{r.u?.nomor_unit || r.unit_nomor}</span>
             <span style={{ fontSize: 11, color: 'var(--t3)' }}>{r.u?.brand} {r.u?.tipe}</span>
             <Badge type={r.type === 'bad' ? 'bad' : 'repair'} />
-            {r.detail?.work_status && !['sudah_dipesan','full_supply'].includes(r.detail.work_status) && (
+            {r.detail?.work_status && !['waiting_part','part_full_supply'].includes(r.detail.work_status) && (
               <WorkStatusBadge status={r.detail.work_status} />
             )}
             {(r.type === 'bad' || repairHasPart) && r.part_order?.status && (() => {
@@ -226,14 +226,14 @@ function DamageCard({ r, user, updating, onWorkStatus }) {
               const st = r.part_order.status
               if (st === 'pending' && ws === 'sudah_selesai') return null
               if (st === 'approved') return null
-              if (['sudah_dipesan','full_supply'].includes(ws)) return null // handled below
+              if (['waiting_part','part_full_supply'].includes(ws)) return null // handled below
               return <Badge type={st} />
             })()}
             {/* Planner status badges */}
             {(r.type === 'bad' || repairHasPart) && r.part_order && (() => {
               const ws = r.part_order.work_status
-              if (ws === 'sudah_dipesan') return <Badge type="sudah_dipesan" />
-              if (ws === 'full_supply')   return <Badge type="full_supply" />
+              if (ws === 'waiting_part') return <Badge type="waiting_part" />
+              if (ws === 'part_full_supply')   return <Badge type="part_full_supply" />
               return null
             })()}
           </div>
@@ -717,6 +717,8 @@ const TABS = [
   { k: 'inspeksi',         l: '📋 Inspeksi'         },
   { k: 'belum_dikerjakan', l: '⏳ Belum Dikerjakan' },
   { k: 'order_part',       l: '📦 Sedang Order'     },
+  { k: 'waiting_part',       l: '📦 Waiting Part'     },
+  { k: 'part_full_supply',       l: '📦 Part Full Supply'     },
   { k: 'sudah_selesai',    l: '✅ Sudah Dikerjakan' },
 ]
 
@@ -741,6 +743,8 @@ export default function HistoryPage({ data, user, refetch }) {
       {tab === 'inspeksi'         && <TabInspeksi   data={data} />}
       {tab === 'belum_dikerjakan' && <TabWorkStatus data={data} user={user} refetch={refetch} filterStatus="belum_dikerjakan" />}
       {tab === 'order_part'       && <TabWorkStatus data={data} user={user} refetch={refetch} filterStatus="order_part"       />}
+      {tab === 'waiting_part'       && <TabWorkStatus data={data} user={user} refetch={refetch} filterStatus="waiting_part"       />}
+      {tab === 'part_full_supply'       && <TabWorkStatus data={data} user={user} refetch={refetch} filterStatus="part_full_supply"       />}
       {tab === 'sudah_selesai'    && <TabWorkStatus data={data} user={user} refetch={refetch} filterStatus="sudah_selesai"    />}
     </div>
   )

@@ -4,6 +4,8 @@ import Pagination, { PAGE_SIZE } from '../components/Pagination'
 import { SkeletonCardList } from '../components/SkeletonLoader'
 import { useSelector, useDispatch } from 'react-redux'
 import { selectLoading, pushToQueue } from '../store/appSlice'
+import { exportCsv } from '../lib/exportCsv'
+import { exportHourMeterPdf } from '../lib/exportPdf'
 
 function fmtDateTime(d) {
   if (!d) return '-'
@@ -23,6 +25,7 @@ export default function HourMeter({ data, user, refetch }) {
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState('')
+  const [hmLogs, setHmLogs] = useState([])
 
   const loading = useSelector(selectLoading)
 
@@ -34,6 +37,18 @@ export default function HourMeter({ data, user, refetch }) {
   useEffect(() => {
     setPage(1)
   }, [filterTipe, filterBrand])
+  useEffect(() => {
+  loadHmLogs()
+}, [])
+
+const loadHmLogs = async () => {
+  try {
+    const logs = await api.getHourMeterLogs()
+    setHmLogs(logs)
+  } catch (err) {
+    console.error('Gagal load HM logs', err)
+  }
+}
 
   const { tipes, brands } = useMemo(() => {
     return {
@@ -42,12 +57,29 @@ export default function HourMeter({ data, user, refetch }) {
     }
   }, [units])
 
-  const filteredUnits = useMemo(() => {
-    return units.filter(u =>
-      (filterTipe  === 'all' || u.tipe  === filterTipe)  &&
-      (filterBrand === 'all' || u.brand === filterBrand)
-    )
-  }, [units, filterTipe, filterBrand])
+  const hmLogMap = useMemo(() => {
+  return Object.fromEntries(
+    hmLogs.map(log => [log.unit_id, log])
+  )
+}, [hmLogs])
+
+const filteredUnits = useMemo(() => {
+  return units.map(unit => {
+    const latestLog = hmLogMap[unit.id]
+
+    return {
+      ...unit,
+      hm_catatan: latestLog?.catatan || '',
+      hm_user: latestLog?.user_nama || '',
+      hm_updated_at: latestLog?.createdAt || null,
+    }
+  }).filter(unit => {
+  return (
+    (filterTipe === 'all' || unit.tipe === filterTipe) &&
+    (filterBrand === 'all' || unit.brand === filterBrand)
+  )
+})
+}, [units, hmLogMap, filterTipe, filterBrand])
 
   const paginatedUnits = useMemo(() => {
     return [...filteredUnits]
@@ -97,6 +129,7 @@ export default function HourMeter({ data, user, refetch }) {
       setUnitId('')
       setHmAfter('')
       await refetch()
+      await loadHmLogs()
     } catch (e) {
       if (e.message === 'OFFLINE' || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
         dispatch(pushToQueue({ type: 'UPDATE_HM', data: payload }))
@@ -111,6 +144,31 @@ export default function HourMeter({ data, user, refetch }) {
       setSaving(false)
     }
   }
+
+  const exportHMCSV = () => {
+  const headers = [
+    'Tanggal',
+    'Unit',
+    'Hour Meter',
+    'Catatan/Lokasi',
+    'User',
+  ]
+
+
+  const rows = hmLogs.map(item => [
+    new Date(item.updatedAt).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }),
+    item.nomor_unit || '-',
+    item.hm || 0,
+    item.catatan || '-',
+    item.user_nama || '-',
+  ])
+
+  exportCsv(
+    `hour-meter-${new Date().toISOString().slice(0,10)}.csv`,
+    headers,
+    rows
+  )
+}
 
   return (
     <div className="fade">
@@ -161,7 +219,7 @@ export default function HourMeter({ data, user, refetch }) {
             <option value="">-- Pilih Unit --</option>
             {filteredUnits.map(u => (
               <option key={u.id} value={u.id}>
-                {u.nomor_unit} — {u.brand} {u.tipe} {u.model ? `(${u.model})` : ''}
+                {u.nomor_unit} — {u.brand}
               </option>
             ))}
           </select>
@@ -228,7 +286,7 @@ export default function HourMeter({ data, user, refetch }) {
 
         {/* Catatan opsional */}
         <div style={{ marginBottom: 12 }}>
-          <label className="lbl" htmlFor="catatan">Catatan (opsional)</label>
+          <label className="lbl" htmlFor="catatan">Lokasi</label>
           <input
             id="catatan" name="catatan"
             value={catatan}
@@ -277,6 +335,22 @@ export default function HourMeter({ data, user, refetch }) {
               <option value="all">Semua Brand</option>
               {brands.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+  <button
+    className="btn-ok btn-sm"
+    onClick={exportHMCSV}
+  >
+    Export CSV
+  </button>
+
+  <button
+    className="btn-oy btn-sm"
+    onClick={() => exportHourMeterPdf(hmLogs || [])}
+  >
+    Export PDF
+  </button>
+  
+</div>
           </div>
         </div>
 
@@ -304,7 +378,8 @@ export default function HourMeter({ data, user, refetch }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <div>
                       <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--pd)' }}>{u.nomor_unit}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>Update terakhir: {fmtDateTime(u.updatedAt)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>Update terakhir: {fmtDateTime(u.hm_updated_at)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t3)' }}>Lokasi terakhir: {u.hm_catatan}</div>
                     </div>
                     {unitId === String(u.id) && (
                       <span style={{ background: 'var(--p)', color: '#1c1917', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '.04em' }}>

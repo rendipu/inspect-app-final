@@ -994,6 +994,8 @@ export default async function handler(req, res) {
           "belum_dikerjakan",
           "sedang_dikerjakan",
           "sudah_selesai",
+          "waiting_part",
+          "part_full_supply",
         ];
         if (!valid.includes(work_status))
           return res.status(400).json({ error: "work_status tidak valid" });
@@ -1035,7 +1037,7 @@ export default async function handler(req, res) {
         return res.json({ success: true, work_status });
       }
       if (order_status) {
-        const cu2 = requireRole(req, res, ["group_leader", "admin"]);
+        const cu2 = requireRole(req, res, ["group_leader", "admin", "planner"]);
         if (!cu2) return;
         const insp = await Inspection.findOneAndUpdate(
           { "answers.part_order.id": answerId },
@@ -1063,6 +1065,74 @@ export default async function handler(req, res) {
     }
 
     // ── Stock ─────────────────────────────────────────────────────────────
+if (url === '/api/stock/bulk' && meth === 'POST') {
+  if (!requireRole(req, res, ['warehouse', 'admin'])) return
+
+  try {
+    const { rows, dupMode } = req.body
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({
+        error: 'rows wajib array'
+      })
+    }
+
+    const ops = rows.map(r => {
+      const updateData = {
+        material_description: r.material_description,
+        satuan: r.satuan,
+        location_storage: r.location_storage,
+        minimum_stock: Number(r.minimum_stock || 1),
+        harga_satuan: r.harga_satuan || null,
+        keterangan: r.keterangan || null
+      };
+
+      const setOnInsertData = {};
+
+      if (r.jumlah_stock !== undefined && r.jumlah_stock !== null) {
+        updateData.jumlah_stock = Number(r.jumlah_stock);
+      } else {
+        setOnInsertData.jumlah_stock = 0;
+      }
+
+      if (dupMode === 'skip') {
+        return {
+          updateOne: {
+            filter: { part_number: r.part_number },
+            update: { $setOnInsert: { ...updateData, ...setOnInsertData } },
+            upsert: true
+          }
+        };
+      } else {
+        const updateOp = { $set: updateData };
+        if (Object.keys(setOnInsertData).length > 0) {
+          updateOp.$setOnInsert = setOnInsertData;
+        }
+        return {
+          updateOne: {
+            filter: { part_number: r.part_number },
+            update: updateOp,
+            upsert: true
+          }
+        };
+      }
+    });
+
+    const result = await Stock.bulkWrite(ops)
+
+    return res.json({
+      success: true,
+      inserted: result.upsertedCount,
+      updated: result.modifiedCount
+    })
+  } catch (e) {
+    console.error('bulk import error:', e)
+    return res.status(500).json({
+      error: e.message
+    })
+  }
+}
+
     if (url === "/api/stock") {
       if (!requireAuth(req, res)) return;
       if (meth === "GET") {
@@ -1109,24 +1179,51 @@ export default async function handler(req, res) {
             error: "Field wajib: part_number, material_description, satuan",
           });
         try {
-          const s = await Stock.create({
-            part_number,
-            material_description,
-            jumlah_stock: parseInt(jumlah_stock) || 0,
-            satuan,
-            location_storage: location_storage || null,
-            minimum_stock: parseInt(minimum_stock) || 0,
-            harga_satuan: harga_satuan ? parseFloat(harga_satuan) : null,
-            keterangan: keterangan || null,
-          });
-          return res.status(201).json(s);
-        } catch (e) {
-          if (e.code === 11000)
-            return res
-              .status(409)
-              .json({ error: "Part number sudah terdaftar" });
-          throw e;
-        }
+    const body = await readJson(req)
+
+    const rows = Array.isArray(body?.rows)
+      ? body.rows
+      : []
+
+    if (!rows.length) {
+      return send(res, 400, {
+        error: 'Data excel kosong'
+      })
+    }
+
+    // VALIDASI DATA
+    const cleanedRows = rows.map((item) => ({
+      kode_barang: item.kode_barang || '',
+      nama_barang: item.nama_barang || '',
+      kategori: item.kategori || '',
+      stok: Number(item.stok || 0),
+      satuan: item.satuan || '',
+      lokasi: item.lokasi || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }))
+
+    // BULK INSERT SUPER CEPAT
+    const chunkSize = 500
+
+    for (let i = 0; i < cleanedRows.length; i += chunkSize) {
+      const chunk = cleanedRows.slice(i, i + chunkSize)
+
+      await Stock.insertMany(chunk)
+    }
+
+    return send(res, 200, {
+      success: true,
+      inserted: cleanedRows.length
+    })
+
+  } catch (err) {
+    console.error('IMPORT STOCK ERROR:', err)
+
+    return send(res, 500, {
+      error: 'Gagal import stock'
+    })
+  }
       }
     }
 

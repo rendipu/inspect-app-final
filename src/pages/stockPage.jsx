@@ -4,6 +4,7 @@ import { setStocks, setStockLoading, invalidateStock, selectStocks, selectStockL
 import { SkeletonTable, SkeletonStatCards } from '../components/SkeletonLoader'
 import Pagination, { PAGE_SIZE } from '../components/Pagination'
 import { api } from '../lib/api'
+import * as XLSX from 'xlsx'
 
 const SATUAN_LIST = ['pcs', 'liter', 'meter', 'set', 'roll', 'kg', 'box', 'unit']
 const canEdit     = (role) => role === 'warehouse' || role === 'admin'
@@ -25,108 +26,61 @@ function StockStatus({ jumlah, minimum }) {
   )
 }
 
-// ─── Parse Excel dengan SheetJS (CDN) ────────────────────────────────
-// Cari kolom secara fleksibel berdasarkan keyword header
-function findColIndex(headers, keywords) {
-  const kw = keywords.map(k => k.toLowerCase())
-  return headers.findIndex(h =>
-    h && kw.some(k => String(h).toLowerCase().includes(k))
-  )
-}
+const parseExcelToRows = async (file) => {
+  const buffer = await file.arrayBuffer()
 
-async function parseExcelToRows(file) {
-  // Load SheetJS dari CDN jika belum ada
-  if (!window.XLSX) {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script')
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-      s.onload  = resolve
-      s.onerror = () => reject(new Error('Gagal load library Excel'))
-      document.head.appendChild(s)
-    })
-  }
+  const wb = XLSX.read(buffer, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('Gagal membaca file'))
-    reader.onload  = (e) => {
-      try {
-        const XLSX    = window.XLSX
-        const wb      = XLSX.read(e.target.result, { type: 'array' })
-        const ws      = wb.Sheets[wb.SheetNames[0]]
-        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+  const rows = XLSX.utils.sheet_to_json(ws, {
+    defval: '',
+    raw: true,
+    blankrows: false
+  })
 
-        if (rawRows.length < 2) {
-          reject(new Error('File Excel kosong atau tidak ada data'))
-          return
-        }
+  return rows.map((r, i) => {
+    const clean = Object.fromEntries(
+      Object.entries(r).map(([k, v]) => [k.trim(), v])
+    )
 
-        // Cari baris header — bisa tidak di baris pertama
-        let headerRowIdx = 0
-        for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
-          const row = rawRows[i].map(c => String(c).toLowerCase())
-          if (row.some(c => c.includes('material') || c.includes('part') || c.includes('unrestricted'))) {
-            headerRowIdx = i
-            break
-          }
-        }
+    const res = {
+      rowNum: i + 2,
 
-        const headers = rawRows[headerRowIdx].map(c => String(c).trim())
+      part_number:
+        clean['Material'] ||
+        clean['Part Number'] ||
+        clean['PART NUMBER'] ||
+        '',
 
-        // Cari index kolom secara fleksibel
-        const iMaterial     = findColIndex(headers, ['material'])            // kolom "Material"
-        const iDesc         = findColIndex(headers, ['material description', 'description', 'deskripsi'])
-        const iUnrestricted = findColIndex(headers, ['unrestricted', 'qty', 'quantity', 'jumlah'])
-        const iSatuan       = findColIndex(headers, ['base unit', 'satuan', 'uom', 'unit of measure'])
-        const iStorage      = findColIndex(headers, ['storage', 'lokasi', 'location'])
+      material_description:
+        clean['Material Description'] ||
+        clean['Description'] ||
+        '',
 
-        if (iMaterial < 0) {
-          reject(new Error('Kolom "Material" tidak ditemukan. Pastikan header Excel sesuai.'))
-          return
-        }
-        if (iDesc < 0) {
-          reject(new Error('Kolom "Material Description" tidak ditemukan.'))
-          return
-        }
+      satuan:
+        clean['Base Unit of Measure'] ||
+        clean['Satuan'] ||
+        clean['Unit'] ||
+        '',
 
-        const rows = []
-        for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
-          const row = rawRows[i]
-          const material = String(row[iMaterial] ?? '').trim()
-          const desc     = String(row[iDesc] ?? '').trim()
-          if (!material || !desc) continue  // skip baris kosong
+      location_storage:
+        clean['Storage Location'] ||
+        clean['Location'] ||
+        '',
 
-          const unrestricted = iUnrestricted >= 0 ? parseInt(row[iUnrestricted]) || 0 : 0
-          const satuan       = iSatuan >= 0 ? String(row[iSatuan] ?? '').trim().toLowerCase() || 'pcs' : 'pcs'
-          // Untuk storage: ambil dari kolom jika ada, tapi user bisa override
-          const storageRaw   = iStorage >= 0 ? String(row[iStorage] ?? '').trim() : ''
-
-          rows.push({
-            part_number:          material,
-            material_description: desc,
-            jumlah_stock:         unrestricted,
-            satuan:               SATUAN_LIST.includes(satuan) ? satuan : 'pcs',
-            location_storage:     storageRaw || '',   // akan diisi default 'SWI' di UI
-            minimum_stock:        1,
-            harga_satuan:         '',
-            keterangan:           '',
-            _status:              'pending',   // pending | ok | skip | error
-            _msg:                 '',
-          })
-        }
-
-        if (rows.length === 0) {
-          reject(new Error('Tidak ada data valid di file Excel'))
-          return
-        }
-        resolve(rows)
-      } catch (err) {
-        reject(new Error('Gagal memproses Excel: ' + err.message))
-      }
+      _status: 'pending',
+      _msg: ''
     }
-    reader.readAsArrayBuffer(file)
+
+    const qtyRaw = clean['Unrestricted'] ?? clean['Available stock'] ?? clean['Total Stock'] ?? clean['Qty'] ?? clean['QTY'] ?? clean['Quantity'] ?? clean['Stok'] ?? clean['Stock']
+    if (qtyRaw !== undefined && qtyRaw !== '') {
+      res.jumlah_stock = Number(qtyRaw)
+    }
+
+    return res
   })
 }
+
 
 // ─── Modal Import Excel ───────────────────────────────────────────────
 function ImportExcelModal({ onClose, onDone }) {
@@ -152,8 +106,7 @@ function ImportExcelModal({ onClose, onDone }) {
     setRows([])
     setLoading(true)
     try {
-      const parsed = await parseExcelToRows(file)
-      setRows(parsed)
+      setRows(await parseExcelToRows(file))
     } catch (e) {
       setParseErr(e.message)
     } finally {
@@ -182,80 +135,48 @@ function ImportExcelModal({ onClose, onDone }) {
   const pendingCount = rowsWithLoc.filter(r => r._status === 'pending').length
   const skipCount    = rowsWithLoc.filter(r => r._status === 'skip').length
 
+  // --- Pagination Preview ---
+  const [previewPage, setPreviewPage] = useState(1)
+  const PREVIEW_SIZE = 100
+  const totalPreviewPages = Math.ceil(rowsWithLoc.length / PREVIEW_SIZE)
+  const currentPreviewRows = rowsWithLoc.slice((previewPage - 1) * PREVIEW_SIZE, previewPage * PREVIEW_SIZE)
+
   const handleImport = async () => {
     const toImport = rowsWithLoc.filter(r => r._status === 'pending')
-    if (toImport.length === 0) return
+    if (!toImport.length) return
 
-    setImporting(true)
-    setProgress(0)
+    try {
+      setImporting(true)
+      setProgress(0)
 
-    let ok = 0, updated = 0, skipped = 0, failed = 0
+      let totalInserted = 0;
+      let totalUpdated = 0;
+      const CHUNK_SIZE = 500;
 
-    for (let i = 0; i < toImport.length; i++) {
-      const r = toImport[i]
-      const idx = rows.findIndex(x => x.part_number === r.part_number)
-      try {
-        await api.createStock({
-          part_number:          r.part_number,
-          material_description: r.material_description,
-          jumlah_stock:         r.jumlah_stock,
-          satuan:               r.satuan,
-          location_storage:     r.location_storage,
-          minimum_stock:        r.minimum_stock || 1,
-          harga_satuan:         r.harga_satuan || undefined,
-          keterangan:           r.keterangan || '',
-        })
-        ok++
-        setRows(prev => prev.map((x, xi) => xi === idx ? { ...x, _status: 'ok', _msg: 'Baru ditambahkan' } : x))
-      } catch (e) {
-        const isDup = e.message?.toLowerCase().includes('duplicate') || e.message?.includes('sudah ada') || e.message?.includes('E11000')
-        if (isDup && dupMode === 'update') {
-          // Cari id stock yang sudah ada lalu lakukan adjustment ke nilai baru
-          try {
-            const existing = await api.getStocks({ search: r.part_number })
-            const found = existing.find(s => s.part_number === r.part_number)
-            if (found) {
-              // Adjustment: set stok ke nilai dari Excel
-              await api.stockMovement(found.id, { tipe: 'adjustment', jumlah: r.jumlah_stock, keterangan: 'Update via import Excel' }, found.jumlah_stock)
-              updated++
-              setRows(prev => prev.map((x, xi) => xi === idx
-                ? { ...x, _status: 'ok', _msg: `Stok diupdate: ${found.jumlah_stock} → ${r.jumlah_stock}` }
-                : x
-              ))
-            } else {
-              throw new Error('Data tidak ditemukan untuk diupdate')
-            }
-          } catch (e2) {
-            failed++
-            setRows(prev => prev.map((x, xi) => xi === idx
-              ? { ...x, _status: 'error', _msg: 'Gagal update: ' + e2.message }
-              : x
-            ))
-          }
-        } else if (isDup && dupMode === 'skip') {
-          skipped++
-          setRows(prev => prev.map((x, xi) => xi === idx
-            ? { ...x, _status: 'skip', _msg: 'Sudah ada, dilewati' }
-            : x
-          ))
-        } else {
-          failed++
-          setRows(prev => prev.map((x, xi) => xi === idx
-            ? { ...x, _status: 'error', _msg: e.message }
-            : x
-          ))
-        }
+      for (let i = 0; i < toImport.length; i += CHUNK_SIZE) {
+        const chunk = toImport.slice(i, i + CHUNK_SIZE);
+        const res = await api.bulkImportStock(chunk, dupMode);
+        
+        totalInserted += res.inserted || 0;
+        totalUpdated += res.updated || 0;
+        
+        setProgress(Math.round(((i + chunk.length) / toImport.length) * 100));
       }
-      setProgress(Math.round(((i + 1) / toImport.length) * 100))
-    }
 
-    setImporting(false)
-    const parts = []
-    if (ok > 0) parts.push(`${ok} item baru`)
-    if (updated > 0) parts.push(`${updated} stok diupdate`)
-    if (skipped > 0) parts.push(`${skipped} dilewati`)
-    if (failed > 0) parts.push(`${failed} gagal`)
-    onDone('Import selesai: ' + parts.join(', '))
+      setRows(prev => prev.map(r => ({
+        ...r,
+        _status: r._status === 'pending' ? 'ok' : r._status,
+        _msg: 'Import selesai'
+      })))
+
+      setProgress(100)
+      onDone(`Import selesai: ${totalInserted} baru, ${totalUpdated} diupdate`)
+    } catch (e) {
+      console.error(e)
+      alert(e.message)
+    } finally {
+      setImporting(false)
+    }
   }
 
   const statusColor = { pending: 'var(--t3)', ok: 'var(--ok)', skip: 'var(--inf)', error: 'var(--err)' }
@@ -417,9 +338,11 @@ function ImportExcelModal({ onClose, onDone }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {rowsWithLoc.map((r, i) => (
-                      <tr key={i} style={{ opacity: r._status === 'skip' ? 0.45 : 1 }}>
-                        <td style={{ textAlign:'center', color:'var(--t3)' }}>{i + 1}</td>
+                    {currentPreviewRows.map((r, idx) => {
+                      const actualIdx = (previewPage - 1) * PREVIEW_SIZE + idx;
+                      return (
+                      <tr key={actualIdx} style={{ opacity: r._status === 'skip' ? 0.45 : 1 }}>
+                        <td style={{ textAlign:'center', color:'var(--t3)' }}>{actualIdx + 1}</td>
                         <td>
                           <span className="mono" style={{ fontWeight:700, color:'var(--pd)', fontSize:11 }}>{r.part_number}</span>
                         </td>
@@ -429,7 +352,7 @@ function ImportExcelModal({ onClose, onDone }) {
                           </div>
                         </td>
                         <td style={{ textAlign:'center' }}>
-                          <span className="mono" style={{ fontWeight:700 }}>{r.jumlah_stock}</span>
+                          <span className="mono" style={{ fontWeight:700 }}>{r.jumlah_stock !== undefined ? r.jumlah_stock : '-'}</span>
                         </td>
                         <td>{r.satuan}</td>
                         <td>
@@ -450,7 +373,7 @@ function ImportExcelModal({ onClose, onDone }) {
                         <td style={{ textAlign:'center' }}>
                           {(r._status === 'pending' || r._status === 'skip') && !importing && !isDone && (
                             <button
-                              onClick={() => toggleSkip(i)}
+                              onClick={() => toggleSkip(actualIdx)}
                               style={{ fontSize:10, padding:'2px 8px', borderRadius:4, cursor:'pointer', border:'1px solid', background: r._status === 'skip' ? 'var(--okbg)' : 'var(--errbg)', color: r._status === 'skip' ? 'var(--ok)' : 'var(--err)', borderColor: r._status === 'skip' ? 'var(--okbd)' : 'var(--errbd)', fontWeight:700 }}
                             >
                               {r._status === 'skip' ? 'Aktifkan' : 'Lewati'}
@@ -458,11 +381,36 @@ function ImportExcelModal({ onClose, onDone }) {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {/* Pagination Preview */}
+            {totalPreviewPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, fontSize: 11 }}>
+                <span style={{ color: 'var(--t3)' }}>
+                  Menampilkan {(previewPage - 1) * PREVIEW_SIZE + 1} - {Math.min(previewPage * PREVIEW_SIZE, rowsWithLoc.length)} dari {rowsWithLoc.length} baris
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    disabled={previewPage === 1} 
+                    onClick={() => setPreviewPage(p => Math.max(1, p - 1))}
+                    style={{ padding: '4px 10px', borderRadius: 4, cursor: previewPage === 1 ? 'not-allowed' : 'pointer', border: '1px solid var(--bd)', background: 'transparent' }}
+                  >
+                    Sebelumnya
+                  </button>
+                  <button 
+                    disabled={previewPage === totalPreviewPages} 
+                    onClick={() => setPreviewPage(p => Math.min(totalPreviewPages, p + 1))}
+                    style={{ padding: '4px 10px', borderRadius: 4, cursor: previewPage === totalPreviewPages ? 'not-allowed' : 'pointer', border: '1px solid var(--bd)', background: 'transparent' }}
+                  >
+                    Selanjutnya
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Legend status */}
             <div style={{ display:'flex', gap:14, fontSize:11, color:'var(--t3)', marginBottom:16, flexWrap:'wrap' }}>
@@ -750,6 +698,16 @@ export default function StockPage({ user }) {
     }
   }, [stocks])
 
+  const lastUpdatedGlobal = useMemo(() => {
+    if (!stocks || stocks.length === 0) return null
+    let max = 0
+    stocks.forEach(s => {
+      const ts = new Date(s.updatedAt || s.createdAt || 0).getTime()
+      if (ts > max) max = ts
+    })
+    return max > 0 ? new Date(max) : null
+  }, [stocks])
+
   const handleSave = async (form) => {
     setSaving(true); setError(''); setSuccess('')
     try {
@@ -798,16 +756,25 @@ export default function StockPage({ user }) {
   }
 
   const handleImportDone = async (msg) => {
-    setShowImport(false)
     setSuccess(msg)
+    setShowImport(false)
     dispatch(invalidateStock())
     await loadStocks(true)
   }
 
   return (
     <div className="fade">
-      <h1 style={{ fontSize:20, fontWeight:800, color:'var(--t)', marginBottom:4 }}>Stock Barang</h1>
-      <p style={{ fontSize:13, color:'var(--t3)', marginBottom:18 }}>Manajemen stock spare part & material</p>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h1 style={{ fontSize:20, fontWeight:800, color:'var(--t)', marginBottom:4 }}>Stock Barang</h1>
+          <p style={{ fontSize:13, color:'var(--t3)' }}>Manajemen stock spare part & material</p>
+        </div>
+        {lastUpdatedGlobal && (
+          <div style={{ fontSize:12, color:'var(--pd)', fontWeight:700, display: 'inline-flex', alignItems: 'center', background: 'var(--sfy)', padding: '6px 12px', borderRadius: 20, border: '1.5px solid var(--bd)' }}>
+            🕒 Update: {fmtDateTime(lastUpdatedGlobal)}
+          </div>
+        )}
+      </div>
 
       {/* Notifikasi */}
       {error && (

@@ -23,8 +23,6 @@ async function request(path, options = {}) {
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
@@ -112,6 +110,11 @@ export const api = {
   },
   getStock: (id) => request(`/api/stock/${id}`),
   createStock: (data) => request('/api/stock', { method: 'POST', body: JSON.stringify(data) }),
+  bulkImportStock: (rows, dupMode = 'skip') =>
+  request('/api/stock/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ rows, dupMode })
+  }),
   updateStock: (id, data) => request(`/api/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteStock: (id) => request(`/api/stock/${id}`, { method: 'DELETE' }),
 

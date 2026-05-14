@@ -22,8 +22,8 @@ function inRange(tanggal, from, to) {
 // Planner status — stored in work_status field
 const PLANNER_STATUSES = [
   { v: 'belum_dikerjakan', l: '⏺ Pending',        c: '#dc2626', bg: '#fef2f2' },
-  { v: 'sudah_diorder',    l: '🛒 Sudah Diorder',  c: '#2563eb', bg: '#eff6ff' },
-  { v: 'full_supply',      l: '📦 Full Supply',     c: '#15803d', bg: '#f0fdf4' },
+  { v: 'waiting_part',     l: '🛒 Waiting Part',  c: '#2563eb', bg: '#eff6ff' },
+  { v: 'part_full_supply', l: '📦 Part Full Supply',     c: '#15803d', bg: '#f0fdf4' },
 ]
 
 // ── DateFilter ─────────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ function DateFilter({ from, to, setFrom, setTo }) {
 // ── OrderCard ──────────────────────────────────────────────────────────────────
 function OrderCard({ o, updating, onApprove, onPlannerStatus }) {
   const ws        = o.po.work_status || 'belum_dikerjakan'
-  const isOrdered = ws === 'sudah_diorder'
-  const isFull    = ws === 'full_supply'
+  const isOrdered = ws === 'waiting_part'
+  const isFull    = ws === 'part_full_supply'
   const isPending = o.po.status === 'pending'
   const isApproved= o.po.status === 'approved' || o.po.status === 'approved_planner'
 
@@ -77,8 +77,8 @@ function OrderCard({ o, updating, onApprove, onPlannerStatus }) {
             <span className="mono" style={{ fontWeight: 700, color: 'var(--pd)', fontSize: 14 }}>{o.u?.nomor_unit || o.unit_nomor}</span>
             <span style={{ fontSize: 11, color: 'var(--t3)' }}>{o.u?.brand} {o.u?.tipe}</span>
             <Badge type={o.po.status === 'pending' ? 'pending' : 'approved'} />
-            {isOrdered && <Badge type="sudah_diorder" />}
-            {isFull    && <Badge type="full_supply" />}
+            {isOrdered && <Badge type="waiting_part" />}
+            {isFull    && <Badge type="part_full_supply" />}
           </div>
           <div style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 2 }}>{o.pertanyaan}</div>
           <div style={{ fontSize: 11, color: 'var(--t3)' }}>
@@ -137,7 +137,7 @@ function OrderCard({ o, updating, onApprove, onPlannerStatus }) {
             {PLANNER_STATUSES.filter(s => s.v !== 'belum_dikerjakan').map(st => {
               const isCurrent = ws === st.v
               const isDisabled = !!updating || isCurrent ||
-                (st.v === 'sudah_diorder' && isFull) // tidak bisa mundur dari full_supply
+                (st.v === 'waiting_part' && isFull) // tidak bisa mundur dari part_full_supply
               return (
                 <button key={st.v}
                   onClick={() => !isDisabled && onPlannerStatus(o.po.id, st.v)}
@@ -167,8 +167,8 @@ const STATUS_TABS = [
   { k: 'all',            l: '📋 Semua'          },
   { k: 'pending',        l: '⏺ Menunggu'        },
   { k: 'approved',       l: '✓ Disetujui'       },
-  { k: 'sudah_diorder',  l: '🛒 Sudah Diorder'  },
-  { k: 'full_supply',    l: '📦 Full Supply'     },
+  { k: 'waiting_part',   l: '🛒 Waiting Part'   },
+  { k: 'part_full_supply',l: '📦 Part Full Supply'},
 ]
 
 export default function PlannerOrders({ data, user, refetch }) {
@@ -221,9 +221,9 @@ export default function PlannerOrders({ data, user, refetch }) {
       const ws = o.po.work_status || 'belum_dikerjakan'
       const matchTab = tab === 'all' ? true
         : tab === 'pending'       ? o.po.status === 'pending'
-        : tab === 'approved'      ? (o.po.status === 'approved' && ws !== 'sudah_dipesan' && ws !== 'full_supply')
-        : tab === 'sudah_diorder' ? ws === 'sudah_diorder'
-        : tab === 'full_supply'   ? ws === 'full_supply'
+        : tab === 'approved'      ? (o.po.status === 'approved' && ws !== 'waiting_part' && ws !== 'part_full_supply')
+        : tab === 'waiting_part'  ? ws === 'waiting_part'
+        : tab === 'part_full_supply'? ws === 'part_full_supply'
         : true
       return matchUnit && matchDate && matchTab
     }).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
@@ -231,11 +231,11 @@ export default function PlannerOrders({ data, user, refetch }) {
 
   // Counts for tabs
   const counts = useMemo(() => ({
-    all:           allOrders.length,
-    pending:       allOrders.filter(o => o.po.status === 'pending').length,
-    approved:      allOrders.filter(o => o.po.status === 'approved' && !['sudah_dipesan','full_supply'].includes(o.po.work_status)).length,
-    sudah_dipesan: allOrders.filter(o => o.po.work_status === 'sudah_diorder').length,
-    full_supply:   allOrders.filter(o => o.po.work_status === 'full_supply').length,
+    all:             allOrders.length,
+    pending:         allOrders.filter(o => o.po.status === 'pending').length,
+    approved:        allOrders.filter(o => o.po.status === 'approved' && !['waiting_part','part_full_supply'].includes(o.po.work_status)).length,
+    waiting_part:    allOrders.filter(o => o.po.work_status === 'waiting_part').length,
+    part_full_supply:allOrders.filter(o => o.po.work_status === 'part_full_supply').length,
   }), [allOrders])
 
   // Approve / reject

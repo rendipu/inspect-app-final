@@ -12,8 +12,8 @@ const CONFIG = {
   mekanik:        { bg: 'var(--okbg)',  bd: 'var(--okbd)',  c: 'var(--ok)',  label: 'Mekanik'        },
   warehouse:      { bg: 'var(--wnbg)',  bd: 'var(--wnbd)',  c: 'var(--wn)',  label: 'Warehouse'      },
   planner:        { bg: '#eef2ff',      bd: '#a5b4fc',      c: '#4f46e5',    label: 'Planner'        },
-  sudah_dipesan:  { bg: '#eff6ff',      bd: '#93c5fd',      c: '#2563eb',    label: '🛒 Sudah Dipesan' },
-  full_supply:    { bg: '#f0fdf4',      bd: '#4ade80',      c: '#15803d',    label: '📦 Full Supply'  },
+  waiting_part:     { bg: '#eff6ff',      bd: '#93c5fd',      c: '#2563eb',    label: '🛒 Waiting Part' },
+  part_full_supply: { bg: '#f0fdf4',      bd: '#4ade80',      c: '#15803d',    label: '📦 Part Full Supply'  },
 }
 
 export default function Badge({ type }) {

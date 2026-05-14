@@ -235,7 +235,7 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
       ;(ins.answers || []).forEach(a => {
         if (a.answer === 'bad' && a.part_order) {
           const ws = a.part_order.work_status
-          if (ws === 'sudah_dipesan' || ws === 'full_supply') {
+          if (ws === 'sudah_diorder' || ws === 'full_supply') {
             const u = ins.unit || units.find(x => x.id === ins.unit_id)
             notifs.push({
               id:        a.part_order.id,
@@ -324,7 +324,7 @@ export default function Dashboard({ user, data, setPage, setSelUnit, syncing, la
               const bd     = isFull ? '#4ade80' : '#93c5fd'
               const c      = isFull ? '#15803d' : '#2563eb'
               const icon   = isFull ? '📦' : '🛒'
-              const label  = isFull ? 'Barang Sudah Datang / Full Supply' : 'Sudah Dipesan ke Supplier'
+              const label  = isFull ? 'Barang Sudah Datang / Full Supply' : 'Sudah Diorder ke Supplier'
               return (
                 <div key={`${n.id}-${i}`} style={{ background: bg, border: `1.5px solid ${bd}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <span style={{ fontSize: 24, flexShrink: 0, lineHeight: 1.2 }}>{icon}</span>

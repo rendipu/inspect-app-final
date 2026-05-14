@@ -83,6 +83,7 @@ export default function App() {
     [data]
   )
 
+
   // HARUS sebelum early return (Rules of Hooks)
   const pageMap = useMemo(() => ({
     dashboard:    <Dashboard user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit}
