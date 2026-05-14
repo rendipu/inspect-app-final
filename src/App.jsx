@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { usePolling }     from './hooks/usePolling'
 import { useWindowWidth } from './hooks/useWindowWidth'
@@ -10,6 +10,7 @@ import TopBar        from './components/TopBar'
 import BottomNav     from './components/BottomNav'
 import PwaBanner     from './components/PwaBanner'
 import LiveIndicator from './components/LiveIndicator'
+import QRCameraScanner from './components/QRCameraScanner'
 import { SkeletonDashboard, SkeletonPage } from './components/SkeletonLoader'
 
 // Eager — tampil pertama kali, harus instant
@@ -28,6 +29,7 @@ const HourMeter      = lazy(() => import('./pages/HourMeter'))
 const StockPage      = lazy(() => import('./pages/stockPage'))
 const PublicUnitPage = lazy(() => import('./pages/PublicUnitPage'))
 const PlannerOrders  = lazy(() => import('./pages/PlannerOrders'))
+const ManualLibraryPage = lazy(() => import('./pages/ManualLibraryPage'))
 
 function LoadingScreen() {
   return (
@@ -49,6 +51,8 @@ export default function App() {
   const [page,    setPage]    = useState('dashboard')
   const [selUnit, setSelUnit] = useState(null)
   const [showPwa, setShowPwa] = useState(true)
+  const [showQrCamera, setShowQrCamera] = useState(false)
+  const [pendingScanCode, setPendingScanCode] = useState(null)
   const isDeviceOnline = useOnline()
   const { data, loading, error, syncing, lastSync, mutate, refetch, online, rtStatus } = usePolling(15000, !!user)
   const width  = useWindowWidth()
@@ -79,15 +83,28 @@ export default function App() {
   }, [page, isMob])
 
   const safeData = useMemo(
-    () => data || { users:[], units:[], questions:[], schedules:[], inspections:[], recurring:[] },
+    () => data || {
+      users: [], units: [], questions: [], schedules: [], inspections: [], recurring: [],
+      manuals: { shopmanual: [], partbook: [] },
+    },
     [data]
   )
 
 
+  const handleQrScanResult = (data) => {
+    setShowQrCamera(false)
+    setPage('dashboard')
+    setPendingScanCode(data)
+  }
+
+  const clearPendingScan = useCallback(() => setPendingScanCode(null), [])
+  const openQrScanner = useCallback(() => setShowQrCamera(true), [])
+
   // HARUS sebelum early return (Rules of Hooks)
   const pageMap = useMemo(() => ({
     dashboard:    <Dashboard user={user} data={safeData} setPage={setPage} setSelUnit={setSelUnit}
-                  mutate={mutate} syncing={syncing} lastSync={lastSync} rtStatus={rtStatus} />,
+                  syncing={syncing} pendingScanCode={pendingScanCode} onConsumePendingScan={clearPendingScan}
+                  onOpenScanner={openQrScanner} />,
     inspection:   <InspectionForm user={user} data={safeData} selUnit={selUnit} mutate={mutate} setPage={setPage} refetch={refetch} />,
     history:      <HistoryPage    data={safeData} user={user} refetch={refetch} />,
     analytics:    <Analytics      data={safeData} syncing={syncing} />,
@@ -96,8 +113,10 @@ export default function App() {
     hourmeter:    <HourMeter      data={safeData} user={user} refetch={refetch} />,
     stock:        <StockPage      user={user} />,
     plannerorders:<PlannerOrders  data={safeData} user={user} refetch={refetch} />,
+    shopmanual:   <ManualLibraryPage kind="shopmanual" user={user} setPage={setPage} data={safeData} refetch={refetch} />,
+    partbook:     <ManualLibraryPage kind="partbook" user={user} setPage={setPage} data={safeData} refetch={refetch} />,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate, rtStatus])
+  }), [page, safeData, user, syncing, lastSync, selUnit, refetch, mutate, rtStatus, pendingScanCode, clearPendingScan, openQrScanner])
 
   if (!user) return <LoginPage onLogin={handleLogin} />
   if (loading && !data) return <LoadingScreen />
@@ -125,13 +144,15 @@ export default function App() {
 
       {isMob ? (
         <>
-          <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} rtStatus={rtStatus} />
+          {!['shopmanual', 'partbook'].includes(page) && (
+            <TopBar user={user} page={page} syncing={syncing} lastSync={lastSync} online={online} onLogout={handleLogout} rtStatus={rtStatus} />
+          )}
           <main className="main-with-bottom-nav" style={{ padding:'14px 14px 0' }}>
             <Suspense fallback={<SkeletonPage />}>
               {pageMap[page] ?? pageMap.dashboard}
             </Suspense>
           </main>
-          <BottomNav user={user} page={page} setPage={setPage} />
+          <BottomNav user={user} page={page} setPage={setPage} onScanClick={openQrScanner} />
         </>
       ) : (
         <div style={{ display:'flex' }}>
@@ -145,6 +166,9 @@ export default function App() {
             </Suspense>
           </main>
         </div>
+      )}
+      {showQrCamera && (
+        <QRCameraScanner onResult={handleQrScanResult} onClose={() => setShowQrCamera(false)} />
       )}
       <SpeedInsights />
     </div>

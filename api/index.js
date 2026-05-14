@@ -278,6 +278,40 @@ StockSchema.pre("save", async function (next) {
 });
 const Stock = models.Stock || model("Stock", StockSchema);
 
+const MAX_MANUAL_PDF_BASE64 = 3_800_000;
+
+const EquipmentManualSchema = new Schema(
+  {
+    id: { type: Number, unique: true, index: true },
+    kind: {
+      type: String,
+      enum: ["shopmanual", "partbook"],
+      required: true,
+      index: true,
+    },
+    title: { type: String, required: true },
+    subtitle: { type: String, default: "" },
+    icon: {
+      type: String,
+      enum: ["function", "construction", "warehouse", "bolt", "book", "folder"],
+      default: "book",
+    },
+    pdf_base64: { type: String, default: "" },
+    pdf_filename: { type: String, default: "" },
+    external_url: { type: String, default: "" },
+    updated_by_id: Number,
+    updated_by_nama: String,
+  },
+  { timestamps: true },
+);
+EquipmentManualSchema.index({ kind: 1, title: "text", subtitle: "text" });
+EquipmentManualSchema.pre("save", async function (next) {
+  if (!this.id) this.id = await nextId("equipment_manual");
+  next();
+});
+const EquipmentManual =
+  models.EquipmentManual || model("EquipmentManual", EquipmentManualSchema);
+
 const HourMeterLogSchema = new Schema(
   {
     id: { type: Number, unique: true, index: true },
@@ -1296,6 +1330,138 @@ if (url === '/api/stock/bulk' && meth === 'POST') {
         const s = await Stock.findOneAndDelete({ id });
         if (!s) return res.status(404).json({ error: "Stock tidak ditemukan" });
         return res.json({ message: "Stock dihapus" });
+      }
+    }
+
+    // ── Shop Manual / Partbook (PDF + metadata, semua role terautentikasi) ─
+    if (url === "/api/manuals" && meth === "GET") {
+      if (!requireAuth(req, res)) return;
+      const rows = await EquipmentManual.find({})
+        .sort({ updatedAt: -1 })
+        .lean();
+      const strip = (r) => {
+        const { pdf_base64, ...rest } = r;
+        return {
+          ...rest,
+          has_pdf: !!(pdf_base64 && pdf_base64.length > 80),
+          has_external: !!(r.external_url && String(r.external_url).trim().length > 4),
+        };
+      };
+      return res.json({
+        shopmanual: rows.filter((r) => r.kind === "shopmanual").map(strip),
+        partbook: rows.filter((r) => r.kind === "partbook").map(strip),
+      });
+    }
+
+    if (url === "/api/manuals" && meth === "POST") {
+      const u = requireAuth(req, res);
+      if (!u) return;
+      const {
+        kind,
+        title,
+        subtitle,
+        icon,
+        pdf_base64,
+        pdf_filename,
+        external_url,
+      } = req.body || {};
+      if (!kind || !["shopmanual", "partbook"].includes(kind))
+        return res.status(400).json({ error: "kind harus shopmanual atau partbook" });
+      if (!title || !String(title).trim())
+        return res.status(400).json({ error: "Judul wajib diisi" });
+      const b64Raw = pdf_base64 ? String(pdf_base64).trim() : "";
+      let b64 = b64Raw;
+      const b64Ix = b64.indexOf("base64,");
+      if (b64.startsWith("data:") && b64Ix !== -1) b64 = b64.slice(b64Ix + 7);
+      b64 = b64.replace(/\s/g, "");
+      const ext = external_url ? String(external_url).trim() : "";
+      if (!b64 && !ext)
+        return res.status(400).json({
+          error: "Unggah PDF atau isi URL dokumen (salah satu wajib)",
+        });
+      if (b64.length > MAX_MANUAL_PDF_BASE64)
+        return res.status(400).json({
+          error: `PDF terlalu besar (maks ~${Math.round(MAX_MANUAL_PDF_BASE64 / 1_000_000)}MB terenkode). Kompres file atau gunakan URL eksternal.`,
+        });
+      const doc = await EquipmentManual.create({
+        kind,
+        title: String(title).trim(),
+        subtitle: subtitle != null ? String(subtitle).trim() : "",
+        icon:
+          icon && ["function", "construction", "warehouse", "bolt", "book", "folder"].includes(icon)
+            ? icon
+            : "book",
+        pdf_base64: b64,
+        pdf_filename: pdf_filename ? String(pdf_filename).slice(0, 240) : "",
+        external_url: ext,
+        updated_by_id: u.id,
+        updated_by_nama: u.nama,
+      });
+      const lean = doc.toObject();
+      const { pdf_base64: _p, ...safe } = lean;
+      await broadcast("manuals_updated", { id: safe.id });
+      return res.json({
+        ...safe,
+        has_pdf: !!b64,
+        has_external: !!ext,
+      });
+    }
+
+    const manualIdMatch = url.match(/^\/api\/manuals\/(\d+)$/);
+    if (manualIdMatch) {
+      const id = parseInt(manualIdMatch[1], 10);
+      const authUser = requireAuth(req, res);
+      if (!authUser) return;
+      if (meth === "GET") {
+        const doc = await EquipmentManual.findOne({ id }).lean();
+        if (!doc) return res.status(404).json({ error: "Dokumen tidak ditemukan" });
+        return res.json(doc);
+      }
+      if (meth === "PUT") {
+        const prev = await EquipmentManual.findOne({ id });
+        if (!prev) return res.status(404).json({ error: "Dokumen tidak ditemukan" });
+        const body = req.body || {};
+        if (body.title !== undefined) prev.title = String(body.title || "").trim();
+        if (body.subtitle !== undefined) prev.subtitle = String(body.subtitle || "").trim();
+        if (
+          body.icon !== undefined &&
+          ["function", "construction", "warehouse", "bolt", "book", "folder"].includes(body.icon)
+        )
+          prev.icon = body.icon;
+        if (body.external_url !== undefined)
+          prev.external_url = String(body.external_url || "").trim();
+        if (body.pdf_filename !== undefined)
+          prev.pdf_filename = String(body.pdf_filename || "").slice(0, 240);
+        if (body.pdf_base64 !== undefined) {
+          let b64 = String(body.pdf_base64 || "").trim();
+          const b64Ix = b64.indexOf("base64,");
+          if (b64.startsWith("data:") && b64Ix !== -1) b64 = b64.slice(b64Ix + 7);
+          b64 = b64.replace(/\s/g, "");
+          if (b64.length > MAX_MANUAL_PDF_BASE64)
+            return res.status(400).json({ error: "PDF terlalu besar" });
+          prev.pdf_base64 = b64;
+        }
+        if (!prev.pdf_base64 && !prev.external_url)
+          return res.status(400).json({
+            error: "Setelah update harus ada PDF atau URL dokumen",
+          });
+        prev.updated_by_id = authUser.id;
+        prev.updated_by_nama = authUser.nama;
+        await prev.save();
+        const o = prev.toObject();
+        const { pdf_base64: _p, ...safe } = o;
+        await broadcast("manuals_updated", { id });
+        return res.json({
+          ...safe,
+          has_pdf: !!(prev.pdf_base64 && prev.pdf_base64.length > 80),
+          has_external: !!prev.external_url,
+        });
+      }
+      if (meth === "DELETE") {
+        const r = await EquipmentManual.findOneAndDelete({ id });
+        if (!r) return res.status(404).json({ error: "Dokumen tidak ditemukan" });
+        await broadcast("manuals_updated", { id });
+        return res.json({ ok: true });
       }
     }
 

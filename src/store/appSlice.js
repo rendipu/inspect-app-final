@@ -7,6 +7,7 @@ const emptyData = {
   schedules: [],
   inspections: [],
   recurring: [],
+  manuals: { shopmanual: [], partbook: [] },
 }
 
 const appSlice = createSlice({

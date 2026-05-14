@@ -87,13 +87,14 @@ export function usePolling(interval = 15000, enabled = true) {
       const getLocalYMD = (d = new Date()) =>
         new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
 
-      const [users, unitsRes, questions, schedules, inspRes, recurring] = await Promise.all([
+      const [users, unitsRes, questions, schedules, inspRes, recurring, manualsRes] = await Promise.all([
         api.getUsers().catch(() => []),
         api.getUnits(),
         api.getQuestions(),
         api.getTodaySchedule(getLocalYMD()),
         api.getInspections(),
         api.getRecurringSchedules().catch(() => []),
+        api.getManuals().catch(() => ({ shopmanual: [], partbook: [] })),
       ])
 
       if (!isMounted.current) return
@@ -101,7 +102,11 @@ export function usePolling(interval = 15000, enabled = true) {
       const units       = Array.isArray(unitsRes) ? unitsRes : (unitsRes?.data || [])
       const inspections = Array.isArray(inspRes)  ? inspRes  : (inspRes?.data  || [])
 
-      dispatch(setData({ users, units, questions, schedules, inspections, recurring }))
+      const manuals = manualsRes?.shopmanual != null && manualsRes?.partbook != null
+        ? manualsRes
+        : { shopmanual: [], partbook: [] }
+
+      dispatch(setData({ users, units, questions, schedules, inspections, recurring, manuals }))
     } catch (err) {
       if (!isMounted.current) return
       dispatch(setError(err.message))
@@ -151,6 +156,7 @@ export function usePolling(interval = 15000, enabled = true) {
     channel.bind('work_status_updated',  onUpdate)
     channel.bind('order_status_updated', onUpdate)
     channel.bind('hm_updated',           onUpdate)
+    channel.bind('manuals_updated',      onUpdate)
 
     // Timeout fallback jika Pusher tidak bisa connect dalam 10 detik
     const connTimeout = setTimeout(() => {
@@ -166,6 +172,7 @@ export function usePolling(interval = 15000, enabled = true) {
       channel.unbind('work_status_updated',  onUpdate)
       channel.unbind('order_status_updated', onUpdate)
       channel.unbind('hm_updated',           onUpdate)
+      channel.unbind('manuals_updated',      onUpdate)
       channel.unbind('pusher:subscription_succeeded')
 
       globalRefCount--

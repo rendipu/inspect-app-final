@@ -118,6 +118,13 @@ export const api = {
   updateStock: (id, data) => request(`/api/stock/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteStock: (id) => request(`/api/stock/${id}`, { method: 'DELETE' }),
 
+  // ── Shop Manual / Partbook (PDF) ───────────────────────────────────
+  getManuals: () => request('/api/manuals'),
+  getManual: (id) => request(`/api/manuals/${id}`),
+  createManual: (data) => request('/api/manuals', { method: 'POST', body: JSON.stringify(data) }),
+  updateManual: (id, data) => request(`/api/manuals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteManual: (id) => request(`/api/manuals/${id}`, { method: 'DELETE' }),
+
   // BUG FIX #13: stockMovement 'adjustment' sebelumnya mengirim nilai absolut sebagai delta,
   // tapi server menggunakan $inc (bukan $set), sehingga stok menjadi stok_lama + target_value
   // bukan target_value itu sendiri.
