@@ -1,7 +1,7 @@
 {
   "name": "inspect-app",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Mining Inspection App — MongoDB Atlas + Vercel + PWA",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
-    "@vercel/speed-insights": "^2.0.0",
+    "@vercel/speed-insights": "^2.1.4",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
