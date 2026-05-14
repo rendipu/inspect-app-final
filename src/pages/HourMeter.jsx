@@ -336,6 +336,9 @@ const filteredUnits = useMemo(() => {
               {brands.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
             <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+  
+</div>
+          </div>
   <button
     className="btn-ok btn-sm"
     onClick={exportHMCSV}
@@ -349,9 +352,6 @@ const filteredUnits = useMemo(() => {
   >
     Export PDF
   </button>
-  
-</div>
-          </div>
         </div>
 
         {loading && units.length === 0 ? (
