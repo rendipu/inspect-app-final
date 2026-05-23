@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Badge from '../components/Badge'
 import { api } from '../lib/api'
 
@@ -365,11 +365,15 @@ function TagInput({ tags, onChange, placeholder }) {
 }
 
 // ─── Questions Tab ────────────────────────────────────────────────────────────
-function QuestionsTab({ questions, refetch }) {
+function QuestionsTab({ questions, units, refetch }) {
   const [editRow,  setEditRow]  = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [form,     setForm]     = useState({ kategori:'', pertanyaan:'', urutan:'', unit_tipe:[], brand:[] })
   const [saving,   setSaving]   = useState(false)
+
+  const [selectedUnit, setSelectedUnit] = useState(null)
+  const [showUnitSelector, setShowUnitSelector] = useState(false)
+  const [unitSearchText, setUnitSearchText] = useState('')
 
   const saveNew = async () => {
     if (!form.kategori || !form.pertanyaan) { alert('Kategori & Pertanyaan wajib!'); return }
@@ -391,10 +395,103 @@ function QuestionsTab({ questions, refetch }) {
 
   const toArr = (v) => Array.isArray(v) ? v : (v ? [v] : [])
 
+  const filteredQuestions = useMemo(() => {
+    let list = [...questions]
+    if (selectedUnit) {
+      list = list.filter(q => {
+        const qTypes = toArr(q.unit_tipe)
+        const qBrands = toArr(q.brand)
+        
+        const typeMatch = qTypes.length === 0 || qTypes.some(t => t.toLowerCase() === selectedUnit.tipe.toLowerCase())
+        const brandMatch = qBrands.length === 0 || qBrands.some(b => b.toLowerCase() === selectedUnit.brand.toLowerCase())
+        
+        return typeMatch && brandMatch
+      })
+    }
+    return list.sort((a, b) => a.urutan - b.urutan)
+  }, [questions, selectedUnit])
+
   return (
     <div>
+      {/* 🔍 Review Pertanyaan per Unit */}
+      <div className="card" style={{ marginBottom: 16, borderLeft: '3px solid var(--p)' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--pd)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
+          🔍 Review Pertanyaan per Unit
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <input
+              id="review-unit-search"
+              type="text"
+              value={showUnitSelector ? unitSearchText : (selectedUnit ? `${selectedUnit.nomor_unit} — ${selectedUnit.brand} ${selectedUnit.tipe}` : '')}
+              onChange={e => {
+                setUnitSearchText(e.target.value)
+                if (!showUnitSelector) setShowUnitSelector(true)
+              }}
+              onFocus={() => {
+                setShowUnitSelector(true)
+                setUnitSearchText('')
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowUnitSelector(false), 200)
+              }}
+              placeholder="Cari Unit untuk review pertanyaannya..."
+              style={{ ...IS, width: '100%' }}
+              autoComplete="off"
+            />
+            {showUnitSelector && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0,
+                background: 'var(--bg, #ffffff)', border: '1px solid var(--bd)',
+                borderRadius: 6, maxHeight: 200, overflowY: 'auto',
+                zIndex: 10, marginTop: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              }}>
+                <div
+                  onClick={() => { setSelectedUnit(null); setShowUnitSelector(false); setUnitSearchText('') }}
+                  style={{
+                    padding: '10px 12px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--bd2, #f1f5f9)', fontSize: 13,
+                    color: !selectedUnit ? 'var(--p)' : 'var(--t)',
+                    background: 'var(--bg, #ffffff)', fontWeight: !selectedUnit ? 700 : 400
+                  }}
+                >
+                  Semua Unit (Tanpa Filter)
+                </div>
+                {units.filter(u => {
+                  const s = unitSearchText.toLowerCase()
+                  return `${u.nomor_unit} ${u.brand} ${u.tipe}`.toLowerCase().includes(s)
+                }).map(u => (
+                  <div
+                    key={u.id}
+                    onClick={() => { setSelectedUnit(u); setShowUnitSelector(false); setUnitSearchText('') }}
+                    style={{
+                      padding: '10px 12px', cursor: 'pointer',
+                      borderBottom: '1px solid var(--bd2, #f1f5f9)', fontSize: 13,
+                      color: selectedUnit?.id === u.id ? 'var(--p)' : 'var(--t)',
+                      background: 'var(--bg, #ffffff)', fontWeight: selectedUnit?.id === u.id ? 700 : 400
+                    }}
+                  >
+                    {u.nomor_unit} — {u.brand} {u.tipe}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedUnit && (
+            <button className="btn-g btn-sm" onClick={() => setSelectedUnit(null)}>✕ Reset</button>
+          )}
+        </div>
+        {selectedUnit && (
+          <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 8 }}>
+            Menampilkan <strong style={{ color: 'var(--p)' }}>{filteredQuestions.length}</strong> pertanyaan yang berlaku untuk unit <strong style={{ color: 'var(--t2)' }}>{selectedUnit.nomor_unit}</strong> ({selectedUnit.brand} {selectedUnit.tipe})
+          </div>
+        )}
+      </div>
+
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
-        <span style={{ fontSize:13, color:'var(--t3)' }}>{questions.length} pertanyaan</span>
+        <span style={{ fontSize:13, color:'var(--t3)' }}>
+          {selectedUnit ? `${filteredQuestions.length} dari ` : ''}{questions.length} pertanyaan
+        </span>
         <button className="btn-y btn-sm" onClick={() => setShowForm(p => !p)}>+ Tambah</button>
       </div>
 
@@ -420,7 +517,7 @@ function QuestionsTab({ questions, refetch }) {
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-        {[...questions].sort((a, b) => a.urutan - b.urutan).map(q => (
+        {filteredQuestions.map(q => (
           <div key={q._id} className="scard" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
             {editRow?.id === q.id ? (
               <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'flex-start' }}>
@@ -449,7 +546,7 @@ function QuestionsTab({ questions, refetch }) {
             )}
           </div>
         ))}
-        {questions.length === 0 && <div style={{ textAlign:'center', padding:32, color:'var(--t3)' }}>Belum ada pertanyaan</div>}
+        {filteredQuestions.length === 0 && <div style={{ textAlign:'center', padding:32, color:'var(--t3)' }}>Belum ada pertanyaan</div>}
       </div>
     </div>
   )
@@ -649,7 +746,7 @@ export default function AdminPanel({ data, refetch }) {
 
       {tab === 'users'     && <UsersTab     users={users || []}                          refetch={refetch} />}
       {tab === 'units'     && <UnitsTab     units={units || []}                          refetch={refetch} />}
-      {tab === 'questions' && <QuestionsTab questions={questions || []}                  refetch={refetch} />}
+      {tab === 'questions' && <QuestionsTab questions={questions || []} units={units || []} refetch={refetch} />}
       {tab === 'schedules' && <SchedulesTab units={units || []} recurring={recurring || []} refetch={refetch} />}
     </div>
   )

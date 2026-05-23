@@ -26,6 +26,8 @@ export default function HourMeter({ data, user, refetch }) {
   const [error,   setError]   = useState('')
   const [success, setSuccess] = useState('')
   const [hmLogs, setHmLogs] = useState([])
+  const [unitSearch, setUnitSearch] = useState('')
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false)
 
   const loading = useSelector(selectLoading)
 
@@ -39,7 +41,7 @@ export default function HourMeter({ data, user, refetch }) {
   }, [filterTipe, filterBrand])
   useEffect(() => {
   loadHmLogs()
-}, [])
+}, [units])
 
 const loadHmLogs = async () => {
   try {
@@ -58,9 +60,15 @@ const loadHmLogs = async () => {
   }, [units])
 
   const hmLogMap = useMemo(() => {
-  return Object.fromEntries(
-    hmLogs.map(log => [log.unit_id, log])
-  )
+  const map = {}
+  hmLogs.forEach(log => {
+    const uid = log.unit_id
+    // Keep only the latest log per unit (by createdAt)
+    if (!map[uid] || new Date(log.createdAt) > new Date(map[uid].createdAt)) {
+      map[uid] = log
+    }
+  })
+  return map
 }, [hmLogs])
 
 const filteredUnits = useMemo(() => {
@@ -89,13 +97,24 @@ const filteredUnits = useMemo(() => {
 
   const selectedUnit = useMemo(() => units.find(u => u.id === parseInt(unitId)), [units, unitId])
   // Reset HM input saat ganti unit
-  const handleUnitChange = (e) => {
-    const u = units.find(x => x.id === parseInt(e.target.value))
-    setUnitId(e.target.value)
+  const handleUnitSelect = (id) => {
+    const u = units.find(x => x.id === parseInt(id))
+    setUnitId(String(id))
     setHmAfter(u ? u.hm.toString() : '')
     setError('')
     setSuccess('')
+    setShowUnitDropdown(false)
+    setUnitSearch('')
   }
+
+  const searchedUnits = useMemo(() => {
+    if (!unitSearch.trim()) return filteredUnits
+    const q = unitSearch.toLowerCase()
+    return filteredUnits.filter(u => {
+      const text = `${u.nomor_unit} ${u.brand} ${u.tipe} ${u.model || ''}`.toLowerCase()
+      return text.includes(q)
+    })
+  }, [filteredUnits, unitSearch])
 
   const handleSubmit = async () => {
     if (!unitId)  { setError('Pilih unit terlebih dahulu'); return }
@@ -145,6 +164,20 @@ const filteredUnits = useMemo(() => {
     }
   }
 
+  // Build latest-per-unit data for export (all units with latest HM)
+  const latestHmPerUnit = useMemo(() => {
+    return filteredUnits.map(u => {
+      const log = hmLogMap[u.id]
+      return {
+        updatedAt: log?.createdAt || log?.updatedAt || u.updatedAt || null,
+        nomor_unit: u.nomor_unit,
+        hm_after: u.hm,
+        catatan: log?.catatan || '',
+        user_nama: log?.user_nama || '',
+      }
+    })
+  }, [filteredUnits, hmLogMap])
+
   const exportHMCSV = () => {
   const headers = [
     'Tanggal',
@@ -154,11 +187,10 @@ const filteredUnits = useMemo(() => {
     'User',
   ]
 
-
-  const rows = hmLogs.map(item => [
+  const rows = latestHmPerUnit.map(item => [
     new Date(item.updatedAt).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }),
     item.nomor_unit || '-',
-    item.hm || 0,
+    item.hm_after || 0,
     item.catatan || '-',
     item.user_nama || '-',
   ])
@@ -215,14 +247,62 @@ const filteredUnits = useMemo(() => {
         {/* Pilih unit */}
         <div style={{ marginBottom: 12 }}>
           <label className="lbl" htmlFor="unit-id">Unit * ({filteredUnits.length} unit)</label>
-          <select id="unit-id" name="unitId" value={unitId} onChange={handleUnitChange} style={{ width: '100%' }}>
-            <option value="">-- Pilih Unit --</option>
-            {filteredUnits.map(u => (
-              <option key={u.id} value={u.id}>
-                {u.nomor_unit} — {u.brand}
-              </option>
-            ))}
-          </select>
+          <div style={{ position: 'relative' }}>
+            <input
+              id="unit-id"
+              type="text"
+              value={showUnitDropdown ? unitSearch : (selectedUnit ? `${selectedUnit.nomor_unit} — ${selectedUnit.brand} ${selectedUnit.tipe}` : '')}
+              onChange={e => {
+                setUnitSearch(e.target.value)
+                if (!showUnitDropdown) setShowUnitDropdown(true)
+              }}
+              onFocus={() => {
+                setShowUnitDropdown(true)
+                setUnitSearch('')
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowUnitDropdown(false), 200)
+              }}
+              placeholder="Cari atau Pilih Unit..."
+              style={{ width: '100%' }}
+              autoComplete="off"
+            />
+            {showUnitDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0,
+                background: 'var(--bg, #ffffff)', border: '1px solid var(--bd)',
+                borderRadius: 6, maxHeight: 250, overflowY: 'auto',
+                zIndex: 10, marginTop: 4, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              }}>
+                {searchedUnits.length > 0 ? searchedUnits.map(u => (
+                  <div
+                    key={u.id}
+                    onClick={() => handleUnitSelect(u.id)}
+                    style={{
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid var(--bd2, #f1f5f9)',
+                      fontSize: 13,
+                      color: unitId === String(u.id) ? 'var(--pd)' : 'var(--t, #0f172a)',
+                      fontWeight: unitId === String(u.id) ? 700 : 400,
+                      background: 'var(--bg, #ffffff)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bd2, #f1f5f9)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--bg, #ffffff)'}
+                  >
+                    {u.nomor_unit} — {u.brand} {u.tipe}
+                    <span className="mono" style={{ marginLeft: 8, fontSize: 11, color: 'var(--t3)' }}>
+                      HM {u.hm.toLocaleString()}
+                    </span>
+                  </div>
+                )) : (
+                  <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--t3)', textAlign: 'center', background: 'var(--bg, #ffffff)' }}>
+                    Unit tidak ditemukan
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {filteredUnits.length === 0 && (
             <div style={{ fontSize: 11, color: 'var(--err)', marginTop: 4 }}>
               Tidak ada unit untuk filter ini
@@ -348,7 +428,7 @@ const filteredUnits = useMemo(() => {
 
   <button
     className="btn-oy btn-sm"
-    onClick={() => exportHourMeterPdf(hmLogs || [])}
+    onClick={() => exportHourMeterPdf(latestHmPerUnit)}
   >
     Export PDF
   </button>

@@ -54,6 +54,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
   const [questions, setQuestions] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [saving,    setSaving]    = useState(false)
+  const [catatan,   setCatatan]   = useState('')
   const [unitSearch, setUnitSearch] = useState('')
   const [showUnitDropdown, setShowUnitDropdown] = useState(false)
 
@@ -197,6 +198,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
       mekanik_ids:     selMechs.map(m => m.id),
       answers,
       tanggal:         TODAY,
+      catatan:         catatan.trim() || null,
     }
 
     setSaving(true)
@@ -243,7 +245,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
         <button className="btn-g" onClick={() => setPage('dashboard')}>← Dashboard</button>
         <button className="btn-y" onClick={() => {
           setSubmitted(false); setAns({}); setUnitId('')
-          setHm(''); setStart(''); setFinish(''); setGlId(''); setStockInfo({})
+          setHm(''); setStart(''); setFinish(''); setGlId(''); setStockInfo({}); setCatatan('')
         }}>Inspeksi Baru</button>
       </div>
     </div>
@@ -638,6 +640,25 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
           </div>
         </div>
       ))}
+
+      {!alreadyDone && questions.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--pd)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
+            📝 Catatan Inspeksi
+          </div>
+          <textarea
+            id="catatan-inspeksi"
+            value={catatan}
+            onChange={e => setCatatan(e.target.value)}
+            placeholder="Tulis catatan tambahan inspeksi di sini... (opsional)"
+            rows={3}
+            style={{ width: '100%', resize: 'vertical', fontSize: 13 }}
+          />
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>
+            Catatan ini akan tersimpan bersama data inspeksi
+          </div>
+        </div>
+      )}
 
       {!alreadyDone && questions.length > 0 && (
         <button className="btn-y" onClick={handleSubmit} disabled={saving || !!hmError}
