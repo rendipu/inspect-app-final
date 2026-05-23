@@ -59,35 +59,71 @@ const loadHmLogs = async () => {
     }
   }, [units])
 
+  const latestInspectionMap = useMemo(() => {
+    const map = {}
+    if (data.inspections) {
+      data.inspections.forEach(insp => {
+        const uid = insp.unit_id
+        if (!map[uid] || new Date(insp.tanggal) > new Date(map[uid].tanggal)) {
+          map[uid] = insp
+        }
+      })
+    }
+    return map
+  }, [data.inspections])
+
   const hmLogMap = useMemo(() => {
-  const map = {}
-  hmLogs.forEach(log => {
-    const uid = log.unit_id
-    // Keep only the latest log per unit (by createdAt)
-    if (!map[uid] || new Date(log.createdAt) > new Date(map[uid].createdAt)) {
-      map[uid] = log
-    }
-  })
-  return map
-}, [hmLogs])
+    const map = {}
+    hmLogs.forEach(log => {
+      const uid = log.unit_id
+      // Keep only the latest log per unit (by createdAt)
+      if (!map[uid] || new Date(log.createdAt) > new Date(map[uid].createdAt)) {
+        map[uid] = log
+      }
+    })
+    return map
+  }, [hmLogs])
 
-const filteredUnits = useMemo(() => {
-  return units.map(unit => {
-    const latestLog = hmLogMap[unit.id]
+  const filteredUnits = useMemo(() => {
+    return units.map(unit => {
+      const latestLog = hmLogMap[unit.id]
+      const latestInsp = latestInspectionMap[unit.id]
 
-    return {
-      ...unit,
-      hm_catatan: latestLog?.catatan || '',
-      hm_user: latestLog?.user_nama || '',
-      hm_updated_at: latestLog?.createdAt || null,
-    }
-  }).filter(unit => {
-  return (
-    (filterTipe === 'all' || unit.tipe === filterTipe) &&
-    (filterBrand === 'all' || unit.brand === filterBrand)
-  )
-})
-}, [units, hmLogMap, filterTipe, filterBrand])
+      const logTime = latestLog ? new Date(latestLog.createdAt).getTime() : 0
+      const inspTime = latestInsp ? new Date(latestInsp.tanggal).getTime() : 0
+
+      let catatan = ''
+      let user_nama = ''
+      let updated_at = unit.updatedAt || null
+
+      if (logTime > 0 || inspTime > 0) {
+        if (logTime >= inspTime) {
+          catatan = latestLog.catatan || 'Update Manual'
+          user_nama = latestLog.user_nama || '-'
+          updated_at = latestLog.createdAt
+        } else {
+          catatan = 'Diupdate via Daily Inspeksi'
+          user_nama = latestInsp.mekaniks?.map(m => m.user_nama).filter(Boolean).join(', ') || '-'
+          updated_at = latestInsp.tanggal
+        }
+      } else {
+        catatan = '-'
+        user_nama = '-'
+      }
+
+      return {
+        ...unit,
+        hm_catatan: catatan,
+        hm_user: user_nama,
+        hm_updated_at: updated_at,
+      }
+    }).filter(unit => {
+      return (
+        (filterTipe === 'all' || unit.tipe === filterTipe) &&
+        (filterBrand === 'all' || unit.brand === filterBrand)
+      )
+    })
+  }, [units, hmLogMap, latestInspectionMap, filterTipe, filterBrand])
 
   const paginatedUnits = useMemo(() => {
     return [...filteredUnits]
@@ -167,40 +203,41 @@ const filteredUnits = useMemo(() => {
   // Build latest-per-unit data for export (all units with latest HM)
   const latestHmPerUnit = useMemo(() => {
     return filteredUnits.map(u => {
-      const log = hmLogMap[u.id]
       return {
-        updatedAt: log?.createdAt || log?.updatedAt || u.updatedAt || null,
+        updatedAt: u.hm_updated_at || null,
         nomor_unit: u.nomor_unit,
         hm_after: u.hm,
-        catatan: log?.catatan || '',
-        user_nama: log?.user_nama || '',
+        catatan: u.hm_catatan || '-',
+        user_nama: u.hm_user || '-',
       }
     })
-  }, [filteredUnits, hmLogMap])
+  }, [filteredUnits])
 
   const exportHMCSV = () => {
-  const headers = [
-    'Tanggal',
-    'Unit',
-    'Hour Meter',
-    'Catatan/Lokasi',
-    'User',
-  ]
+    const headers = [
+      'No',
+      'Tanggal',
+      'Unit',
+      'Hour Meter',
+      'Catatan/Lokasi',
+      'User',
+    ]
 
-  const rows = latestHmPerUnit.map(item => [
-    new Date(item.updatedAt).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }),
-    item.nomor_unit || '-',
-    item.hm_after || 0,
-    item.catatan || '-',
-    item.user_nama || '-',
-  ])
+    const rows = latestHmPerUnit.map((item, index) => [
+      index + 1,
+      item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }) : '-',
+      item.nomor_unit || '-',
+      item.hm_after || 0,
+      item.catatan || '-',
+      item.user_nama || '-',
+    ])
 
-  exportCsv(
-    `hour-meter-${new Date().toISOString().slice(0,10)}.csv`,
-    headers,
-    rows
-  )
-}
+    exportCsv(
+      `hour-meter-${new Date().toISOString().slice(0,10)}.csv`,
+      headers,
+      rows
+    )
+  }
 
   return (
     <div className="fade">

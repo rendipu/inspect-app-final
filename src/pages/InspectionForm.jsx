@@ -49,7 +49,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
   const [selMechs,  setSelMechs]  = useState(user.role === 'mekanik' && currentUser ? [currentUser] : [])
   const [start,     setStart]     = useState('')
   const [finish,    setFinish]    = useState('')
-  const [glId,      setGlId]      = useState('')
+  const [selGls,    setSelGls]    = useState(user.role === 'group_leader' && currentUser ? [currentUser] : [])
   const [ans,       setAns]       = useState({})
   const [questions, setQuestions] = useState([])
   const [submitted, setSubmitted] = useState(false)
@@ -133,7 +133,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
   }, [])
 
   const handleSubmit = async () => {
-    if (!unitId || !hm || selMechs.length === 0 || !start || !finish || !glId) {
+    if (!unitId || !hm || selMechs.length === 0 || !start || !finish || selGls.length === 0) {
       alert('Lengkapi semua data header!'); return
     }
     if (hmError) { alert(hmError); return }
@@ -194,7 +194,8 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
       hour_meter:      parseFloat(hm),
       jam_start:       start,
       jam_finish:      finish,
-      group_leader_id: parseInt(glId),
+      group_leader_id: selGls[0]?.id || 0,
+      group_leader_ids: selGls.map(g => g.id),
       mekanik_ids:     selMechs.map(m => m.id),
       answers,
       tanggal:         TODAY,
@@ -245,7 +246,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
         <button className="btn-g" onClick={() => setPage('dashboard')}>← Dashboard</button>
         <button className="btn-y" onClick={() => {
           setSubmitted(false); setAns({}); setUnitId('')
-          setHm(''); setStart(''); setFinish(''); setGlId(''); setStockInfo({}); setCatatan('')
+          setHm(''); setStart(''); setFinish(''); setSelGls(user.role === 'group_leader' && currentUser ? [currentUser] : []); setSelMechs(user.role === 'mekanik' && currentUser ? [currentUser] : []); setStockInfo({}); setCatatan('')
         }}>Inspeksi Baru</button>
       </div>
     </div>
@@ -344,7 +345,7 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
 
             {alreadyDone && selectedUnit && (() => {
               const mechNames = (todayInspection.mekaniks || []).map(m => m.user_nama).filter(Boolean).join(', ')
-              const gl = todayInspection.group_leader_nama || '-'
+              const gl = (todayInspection.group_leaders || []).map(g => g.user_nama).filter(Boolean).join(', ') || todayInspection.group_leader_nama || '-'
               return (
                 <div style={{ marginTop: 8, background: 'var(--errbg)', border: '1.5px solid var(--errbd)', borderRadius: 8, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -398,12 +399,9 @@ export default function InspectionForm({ user, data, selUnit, setPage, refetch, 
                 <input id="jam-finish" name="jamFinish" type="time" value={finish} onChange={e => setFinish(e.target.value)} style={IS} />
               </div>
 
-              <div>
-                <label className="lbl" htmlFor="gl-id">Group Leader *</label>
-                <select id="gl-id" name="glId" value={glId} onChange={e => setGlId(e.target.value)} style={IS}>
-                  <option value="">-- Pilih GL --</option>
-                  {gls.map(g => <option key={g.id} value={g.id}>{g.nama}</option>)}
-                </select>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="lbl" htmlFor="gl-select">Group Leader *</label>
+                <MultiUserInput inputId="gl-select" users={gls} selected={selGls} onChange={setSelGls} placeholder="Ketik nama GL..." roleLabel="group leader" />
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>

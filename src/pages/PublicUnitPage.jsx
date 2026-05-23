@@ -181,7 +181,7 @@ export default function PublicUnitPage({ qrCode }) {
                             <span style={{ fontSize: 11, color: '#78716c' }}>{ins.jam_start} – {ins.jam_finish} · {fmtDuration(ins.jam_start, ins.jam_finish)}</span>
                           </div>
                           <div style={{ fontSize: 12, color: '#57534e' }}>
-                            GL: <strong>{ins.group_leader_nama}</strong> ·
+                            GL: <strong>{(ins.group_leaders || []).map(g => g.user_nama).filter(Boolean).join(', ') || ins.group_leader_nama || '-'}</strong> ·
                             Mekanik: <strong>{(ins.mekaniks || []).map(m => m.user_nama).join(', ') || '-'}</strong>
                           </div>
                           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>

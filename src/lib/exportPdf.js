@@ -289,6 +289,7 @@ export function exportHourMeterPdf(histories = []) {
 
   // HEADER TABLE
   const headers = [
+    'No',
     'Tanggal',
     'Unit',
     'Hour meter',
@@ -296,7 +297,7 @@ export function exportHourMeterPdf(histories = []) {
     'User',
   ]
 
-  const colWidths = [35, 35, 28, 80, 35]
+  const colWidths = [12, 35, 35, 28, 80, 35]
 
   let x = 10
 
@@ -311,12 +312,13 @@ export function exportHourMeterPdf(histories = []) {
 
   y += 8
 
-  histories.forEach((item) => {
+  histories.forEach((item, index) => {
     x = 10
 
     const row = [
-      new Date(item.updatedAt).toLocaleDateString('id-ID'),
-      item.unit_nomor || '-',
+      String(index + 1),
+      item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('id-ID') : '-',
+      item.nomor_unit || '-',
       String(item.hm_after ?? '-'),
       item.catatan || '-',
       item.user_nama || '-',

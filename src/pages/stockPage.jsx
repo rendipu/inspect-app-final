@@ -38,7 +38,8 @@ const parseExcelToRows = async (file) => {
     blankrows: false
   })
 
-  return rows.map((r, i) => {
+  // ── Map raw Excel rows → normalized objects ──
+  const mapped = rows.map((r, i) => {
     const clean = Object.fromEntries(
       Object.entries(r).map(([k, v]) => [k.trim(), v])
     )
@@ -47,10 +48,7 @@ const parseExcelToRows = async (file) => {
       rowNum: i + 2,
 
       part_number:
-        clean['Material'] ||
-        clean['Part Number'] ||
-        clean['PART NUMBER'] ||
-        '',
+        String(clean['Material'] || clean['Part Number'] || clean['PART NUMBER'] || '').trim(),
 
       material_description:
         clean['Material Description'] ||
@@ -65,6 +63,7 @@ const parseExcelToRows = async (file) => {
 
       location_storage:
         clean['Storage Location'] ||
+        clean['Sloc'] ||
         clean['Location'] ||
         '',
 
@@ -78,7 +77,32 @@ const parseExcelToRows = async (file) => {
     }
 
     return res
+  }).filter(r => r.part_number !== '') // Buang baris tanpa Material
+
+  // ── Deduplikasi: gabungkan baris dengan part_number yang sama ──
+  // Format baru memiliki banyak baris per Material (per Storage Bin/Batch)
+  // Solusi: jumlahkan qty dan gabungkan location
+  const grouped = new Map()
+  mapped.forEach(r => {
+    const key = r.part_number
+    if (!grouped.has(key)) {
+      grouped.set(key, { ...r })
+    } else {
+      const existing = grouped.get(key)
+      // Jumlahkan stok
+      if (r.jumlah_stock !== undefined) {
+        existing.jumlah_stock = (existing.jumlah_stock || 0) + Number(r.jumlah_stock)
+      }
+      // Gabungkan lokasi (jika berbeda)
+      if (r.location_storage && r.location_storage !== existing.location_storage) {
+        const locs = new Set(existing.location_storage.split(',').map(l => l.trim()).filter(Boolean))
+        locs.add(r.location_storage.trim())
+        existing.location_storage = [...locs].join(', ')
+      }
+    }
   })
+
+  return [...grouped.values()].map((r, i) => ({ ...r, rowNum: i + 2 }))
 }
 
 
@@ -192,7 +216,7 @@ function ImportExcelModal({ onClose, onDone }) {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
           <div>
             <h2 style={{ fontSize:17, fontWeight:800, color:'var(--t)', marginBottom:2 }}>📂 Import Stock dari Excel</h2>
-            <p style={{ fontSize:12, color:'var(--t3)' }}>Kolom yang dibutuhkan: Material, Material Description, Unrestricted</p>
+            <p style={{ fontSize:12, color:'var(--t3)' }}>Kolom: Material, Material Description, Available stock / Unrestricted · Material duplikat otomatis digabungkan</p>
           </div>
           <button onClick={onClose} style={{ background:'transparent', border:'none', fontSize:22, cursor:'pointer', color:'var(--t3)', lineHeight:1, flexShrink:0 }}>✕</button>
         </div>

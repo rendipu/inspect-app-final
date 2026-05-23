@@ -233,6 +233,7 @@ const InspectionSchema = new Schema(
     jam_finish: String,
     group_leader_id: Number,
     group_leader_nama: String,
+    group_leaders: [MekanikSub],
     mekaniks: [MekanikSub],
     answers: [AnswerSub],
   },
@@ -258,7 +259,8 @@ const StockLogSub = new Schema(
 
 const StockSchema = new Schema(
   {
-    id: { type: Number, unique: true, index: true },
+    // sparse:true = nilai null tidak dianggap duplikat (aman untuk bulkWrite/upsert)
+    id: { type: Number, unique: true, sparse: true },
     part_number: { type: String, required: true, unique: true },
     material_description: { type: String, required: true },
     jumlah_stock: { type: Number, default: 0 },
@@ -860,16 +862,22 @@ export default async function handler(req, res) {
           jam_start,
           jam_finish,
           group_leader_id,
+          group_leader_ids,
           mekanik_ids,
           answers,
           tanggal,
         } = req.body;
+
+        const glIds = Array.isArray(group_leader_ids) && group_leader_ids.length > 0
+          ? group_leader_ids.map(Number)
+          : (group_leader_id ? [Number(group_leader_id)] : []);
+
         if (
           !unit_id ||
           !hour_meter ||
           !jam_start ||
           !jam_finish ||
-          !group_leader_id ||
+          glIds.length === 0 ||
           !mekanik_ids?.length ||
           !answers?.length
         )
@@ -898,9 +906,12 @@ export default async function handler(req, res) {
             existing_id: already.id,
           });
         }
-        const [unit, leader, mekanikUsers, questionDocs] = await Promise.all([
+        const [unit, glUsers, mekanikUsers, questionDocs] = await Promise.all([
           Unit.findOne({ id: parseInt(unit_id) }).lean(),
-          User.findOne({ id: parseInt(group_leader_id) }, "id nrp nama").lean(),
+          User.find(
+            { id: { $in: glIds } },
+            "id nrp nama",
+          ).lean(),
           User.find(
             { id: { $in: mekanik_ids.map(Number) } },
             "id nrp nama",
@@ -965,6 +976,17 @@ export default async function handler(req, res) {
             return ans;
           }),
         );
+        const glMap = Object.fromEntries(glUsers.map((u) => [u.id, u]));
+        const builtGls = glIds.map((gid) => {
+          const u = glMap[parseInt(gid)] || {};
+          return {
+            user_id: parseInt(gid),
+            user_nrp: u.nrp,
+            user_nama: u.nama,
+          };
+        });
+        const firstGl = builtGls[0] || {};
+
         const inspection = await Inspection.create({
           unit_id: parseInt(unit_id),
           unit_nomor: unit.nomor_unit,
@@ -974,8 +996,9 @@ export default async function handler(req, res) {
           hour_meter: parseFloat(hour_meter),
           jam_start,
           jam_finish,
-          group_leader_id: parseInt(group_leader_id),
-          group_leader_nama: leader?.nama,
+          group_leader_id: firstGl.user_id || 0,
+          group_leader_nama: firstGl.user_nama || "",
+          group_leaders: builtGls,
           mekaniks: mekanik_ids.map((mid) => {
             const u = mMap[parseInt(mid)] || {};
             return {
@@ -990,6 +1013,15 @@ export default async function handler(req, res) {
           { id: parseInt(unit_id) },
           { hm: parseFloat(hour_meter) },
         );
+        await HourMeterLog.create({
+          unit_id: parseInt(unit_id),
+          unit_nomor: unit.nomor_unit,
+          hm_before: unit.hm,
+          hm_after: parseFloat(hour_meter),
+          user_id: cu.id,
+          user_nama: cu.nama,
+          catatan: "Diupdate via Daily Inspeksi",
+        });
         broadcast("inspection_created", {
           id: inspection.id,
           unit_nomor: inspection.unit_nomor,
@@ -1111,6 +1143,50 @@ if (url === '/api/stock/bulk' && meth === 'POST') {
       })
     }
 
+    // ── Pre-generate ID untuk dokumen baru ──────────────────────────
+    // bulkWrite/upsert TIDAK menjalankan pre('save') hook,
+    // sehingga field `id` tetap null dan menyebabkan duplicate key error.
+    // Solusi: cek dulu mana yang sudah ada, generate id untuk yang baru.
+    const allPartNumbers = rows.map(r => r.part_number).filter(Boolean)
+    const existing = await Stock.find(
+      { part_number: { $in: allPartNumbers } },
+      { part_number: 1 }
+    ).lean()
+    const existingSet = new Set(existing.map(e => e.part_number))
+
+    // ── Perbaiki dokumen lama yang punya id:null ─────────────────────
+    // (dari import sebelumnya yang gagal tanpa pre-generate id)
+    const nullIdDocs = await Stock.find({ id: null }, { _id: 1 }).lean()
+    if (nullIdDocs.length > 0) {
+      for (const doc of nullIdDocs) {
+        const newId = await nextId('stock')
+        await Stock.updateOne({ _id: doc._id }, { $set: { id: newId } })
+      }
+    }
+    // ────────────────────────────────────────────────────────────────
+
+    // ── Pastikan index id_1 bersifat sparse ──────────────────────────
+    // Index lama (non-sparse) menolak lebih dari 1 dokumen dengan id:null.
+    // Kita drop dan biarkan Mongoose recreate dengan definisi sparse.
+    try {
+      const idxInfo = await Stock.collection.indexInformation()
+      const idIdx = idxInfo['id_1']
+      if (idIdx && !idIdx[0]?.sparse) {
+        await Stock.collection.dropIndex('id_1')
+        await Stock.syncIndexes()
+      }
+    } catch (_) { /* index mungkin belum ada, abaikan */ }
+    // ────────────────────────────────────────────────────────────────
+
+    // Generate id untuk setiap part_number baru
+    const newIdMap = {}
+    for (const pn of allPartNumbers) {
+      if (!existingSet.has(pn) && !newIdMap[pn]) {
+        newIdMap[pn] = await nextId('stock')
+      }
+    }
+    // ────────────────────────────────────────────────────────────────
+
     const ops = rows.map(r => {
       const updateData = {
         material_description: r.material_description,
@@ -1122,6 +1198,11 @@ if (url === '/api/stock/bulk' && meth === 'POST') {
       };
 
       const setOnInsertData = {};
+
+      // Sertakan id yang sudah di-generate untuk dokumen baru
+      if (newIdMap[r.part_number]) {
+        setOnInsertData.id = newIdMap[r.part_number];
+      }
 
       if (r.jumlah_stock !== undefined && r.jumlah_stock !== null) {
         updateData.jumlah_stock = Number(r.jumlah_stock);

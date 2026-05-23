@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export default function MultiUserInput({ users, selected, onChange, placeholder = 'Ketik nama mekanik...' }) {
+export default function MultiUserInput({ users, selected, onChange, placeholder = 'Ketik nama...', roleLabel = 'mekanik' }) {
   const [query,    setQuery]    = useState('')
   const [open,     setOpen]     = useState(false)
   const [focused,  setFocused]  = useState(false)
@@ -73,7 +73,7 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
           boxShadow: focused ? '0 0 0 3px rgba(245,158,11,.12)' : 'none',
         }}
       >
-        {/* Chips mekanik yang sudah dipilih */}
+        {/* Chips user yang sudah dipilih */}
         {selected.map(u => (
           <span key={u.id} style={{
             display: 'inline-flex',
@@ -117,7 +117,7 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
 
         {/* Input teks */}
         <input
-          id="multi-user-input" name="multiUserInput" aria-label={placeholder || 'Ketik nama mekanik'}
+          id="multi-user-input" name="multiUserInput" aria-label={placeholder}
           ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}
@@ -159,7 +159,7 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
             <>
               {/* Header hint */}
               <div style={{ padding: '6px 12px', fontSize: 10, color: 'var(--t3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', borderBottom: '1px solid var(--bd2)', background: 'var(--bd2)' }}>
-                Pilih mekanik
+                Pilih {roleLabel}
               </div>
               {suggestions.map((u, idx) => (
                 <button
@@ -218,11 +218,11 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
             </>
           ) : query.length > 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>
-              Tidak ada mekanik dengan nama "{query}"
+              Tidak ada {roleLabel} dengan nama "{query}"
             </div>
-          ) : selected.length === users.filter(u=>u.role==='mekanik').length ? (
+          ) : selected.length === users.length ? (
             <div style={{ padding: '16px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>
-              Semua mekanik sudah dipilih
+              Semua {roleLabel} sudah dipilih
             </div>
           ) : (
             <div style={{ padding: '16px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>
@@ -235,7 +235,7 @@ export default function MultiUserInput({ users, selected, onChange, placeholder 
       {/* Counter info */}
       {selected.length > 0 && (
         <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 5 }}>
-          {selected.length} mekanik dipilih ·
+          {selected.length} {roleLabel} dipilih ·
           <button
             type="button"
             onClick={() => onChange([])}
