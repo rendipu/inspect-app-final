@@ -1020,9 +1020,9 @@ button:focus-visible {
 }
 
 .manual-lib-ico-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
   background: var(--surface-container, #eeeeee);
   display: flex;
   align-items: center;
@@ -1031,13 +1031,13 @@ button:focus-visible {
 }
 
 .manual-lib-ico-sym {
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .manual-lib-card-title {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 8px;
   font-weight: 700;
   color: var(--t);
 }
